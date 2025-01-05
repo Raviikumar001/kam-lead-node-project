@@ -7,7 +7,11 @@ import {
   text,
   integer,
   boolean,
+  jsonb,
+  decimal,
   pgEnum,
+  index,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -39,6 +43,16 @@ const restaurantTypeEnum = pgEnum("restaurant_type", [
   "QSR",
 ]);
 
+export const interactionTypeEnum = pgEnum("interaction_type", [
+  "CALL",
+  "ORDER",
+]);
+export const interactionStatusEnum = pgEnum("interaction_status", [
+  "COMPLETED",
+  "NO_ANSWER",
+  "FOLLOW_UP_NEEDED",
+]);
+
 // Updated leads table
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
@@ -66,15 +80,28 @@ export const contacts = pgTable("contacts", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Updated interactions table with pgEnum
 export const interactions = pgTable("interactions", {
   id: serial("id").primaryKey(),
-  leadId: integer("lead_id").references(() => leads.id),
-  userId: integer("user_id").references(() => users.id),
-  type: varchar("type", { length: 50 }).notNull(), // 'call' or 'order'
-  notes: text("notes"),
-  orderValue: integer("order_value"),
-  interactionDate: timestamp("interaction_date").defaultNow(),
+  leadId: integer("lead_id")
+    .references(() => leads.id)
+    .notNull(),
+  contactId: integer("contact_id")
+    .references(() => contacts.id)
+    .notNull(),
+  // Using pgEnum instead of varchar
+  type: interactionTypeEnum("type").notNull(),
+  status: interactionStatusEnum("status").notNull(),
+  details: text("details"),
+  // For orders specific data
+  orderAmount: decimal("order_amount", { precision: 10, scale: 2 }).default(
+    "0"
+  ),
+  orderItems: jsonb("order_items").default("{}"),
+  // Tracking fields
+  createdBy: uuid("created_by").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Then define relations
@@ -109,3 +136,8 @@ export const interactionsRelations = relations(interactions, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const interactionsByLeadIndex = index(
+  "idx_interactions_lead_id",
+  interactions.leadId
+);
