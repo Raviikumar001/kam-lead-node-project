@@ -15,7 +15,7 @@ import {
 } from "../utils/validation/index.js";
 
 import { asyncHandler } from "../utils/error.utils.js";
-import { authenticateToken } from "../middleware/auth.middleware.js";
+import { authMiddleware } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -33,7 +33,7 @@ router.post("/logout", asyncHandler(logout));
 
 router.post(
   "/logout-all",
-  authenticateToken, // Protected route
+  authMiddleware, // Protected route
   asyncHandler(logoutAll)
 );
 

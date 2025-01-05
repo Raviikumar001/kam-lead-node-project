@@ -3,7 +3,7 @@ import { verifyAccessToken } from "../utils/jwt.utils.js";
 import { APIError, ERROR_CODES } from "../utils/error.utils.js";
 import { logger } from "../utils/logger.js";
 
-export const authenticateToken = (req, res, next) => {
+export const authMiddleware = (req, res, next) => {
   try {
     const authHeader = req.headers["authorization"];
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
