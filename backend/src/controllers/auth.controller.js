@@ -21,11 +21,11 @@ const formatResponse = (data, message = null) => ({
 
 export const register = async (req, res) => {
   logger.info("Registration attempt", {
-    email: req.validated.email,
+    email: req.body.email,
     timestamp: "2025-01-05 03:08:14",
   });
 
-  const result = await registerUser(req.validated);
+  const result = await registerUser(req.body);
 
   logger.success("User registered successfully", {
     userId: result.user.id,
@@ -36,12 +36,13 @@ export const register = async (req, res) => {
 };
 
 export const login = async (req, res) => {
+  console.log("login", req.body);
   logger.info("Login attempt", {
-    email: req.validated.email,
+    email: req.body.email,
     timestamp: "2025-01-05 03:08:14",
   });
 
-  const result = await loginUser(req.validated.email, req.validated.password);
+  const result = await loginUser(req.body.email, req.body.password);
 
   logger.success("User logged in successfully", {
     userId: result.user.id,

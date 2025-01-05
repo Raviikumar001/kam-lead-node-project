@@ -7,10 +7,11 @@ import {
   text,
   integer,
   boolean,
+  pgEnum,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm"; // Add this import
+import { relations } from "drizzle-orm";
 
-// Define tables first
+// Keep existing users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: varchar("email", { length: 255 }).notNull().unique(),
@@ -22,12 +23,32 @@ export const users = pgTable("users", {
   tokenVersion: integer("token_version").notNull().default(0),
 });
 
+// Define ENUMs for leads
+const leadStatusEnum = pgEnum("lead_status", [
+  "NEW",
+  "CONTACTED",
+  "INTERESTED",
+  "NEGOTIATING",
+  "CONVERTED",
+  "NOT_INTERESTED",
+]);
+
+const restaurantTypeEnum = pgEnum("restaurant_type", [
+  "FINE_DINING",
+  "CASUAL_DINING",
+  "QSR",
+]);
+
+// Updated leads table
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
   restaurantName: varchar("restaurant_name", { length: 255 }).notNull(),
-  status: varchar("status", { length: 50 }).notNull(),
-  callFrequency: integer("call_frequency").notNull(),
+  address: text("address").notNull(),
+  status: leadStatusEnum("status").notNull().default("NEW"),
+  restaurantType: restaurantTypeEnum("restaurant_type"),
+  notes: text("notes"),
+  callFrequency: integer("call_frequency"),
   lastCallDate: timestamp("last_call_date"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

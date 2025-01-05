@@ -7,8 +7,13 @@ import {
   logout,
   logoutAll,
 } from "../controllers/auth.controller.js";
-import { validateRequest } from "../utils/validation.utils.js";
-import { registerSchema, loginSchema } from "../utils/validation.utils.js";
+
+import {
+  validateRequest,
+  loginSchema,
+  registerSchema,
+} from "../utils/validation/index.js";
+
 import { asyncHandler } from "../utils/error.utils.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 
