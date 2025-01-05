@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { errorHandler, notFoundHandler } from "./src/utils/error.utils.js";
-import authRoutes from "./src/routes/auth.routes.js";
+import routes from "./src/routes/index.js";
 import { requestLoggerMiddleware } from "./src/utils/logger.js";
 import { logger } from "./src/utils/logger.js";
 
@@ -17,7 +17,7 @@ app.use(express.json());
 app.use(requestLoggerMiddleware); // Log all requests
 
 // Routes
-app.use("/api/auth", authRoutes);
+app.use("/", routes);
 
 // Health check route
 app.get("/health", (req, res) => {

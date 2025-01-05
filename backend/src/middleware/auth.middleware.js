@@ -6,6 +6,13 @@ import { logger } from "../utils/logger.js";
 export const authenticateToken = (req, res, next) => {
   try {
     const authHeader = req.headers["authorization"];
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      throw new APIError(
+        "Authentication required",
+        401,
+        ERROR_CODES.UNAUTHORIZED
+      );
+    }
     const token = authHeader && authHeader.split(" ")[1];
 
     if (!token) {
