@@ -1,4 +1,5 @@
 // src/utils/error.utils.js
+
 import { logger } from "./logger.js";
 
 // Custom error class for API errors

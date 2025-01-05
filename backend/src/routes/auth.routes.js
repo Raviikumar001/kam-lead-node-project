@@ -1,11 +1,35 @@
 // src/routes/auth.routes.js
 import express from "express";
-import { AuthController } from "../controllers/auth.controller.js";
+import {
+  register,
+  login,
+  refresh,
+  logout,
+  logoutAll,
+} from "../controllers/auth.controller.js";
+import { validateRequest } from "../utils/validation.utils.js";
+import { registerSchema, loginSchema } from "../utils/validation.utils.js";
+import { asyncHandler } from "../utils/error.utils.js";
+import { authenticateToken } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
-const authController = new AuthController();
 
-router.post("/register", authController.register);
-router.post("/login", authController.login);
+router.post(
+  "/register",
+  validateRequest(registerSchema),
+  asyncHandler(register)
+);
+
+router.post("/login", validateRequest(loginSchema), asyncHandler(login));
+
+router.post("/refresh", asyncHandler(refresh));
+
+router.post("/logout", asyncHandler(logout));
+
+router.post(
+  "/logout-all",
+  authenticateToken, // Protected route
+  asyncHandler(logoutAll)
+);
 
 export default router;

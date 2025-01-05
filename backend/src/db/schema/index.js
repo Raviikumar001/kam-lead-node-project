@@ -19,6 +19,7 @@ export const users = pgTable("users", {
   role: varchar("role", { length: 50 }).default("kam"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  tokenVersion: integer("token_version").notNull().default(0),
 });
 
 export const leads = pgTable("leads", {
