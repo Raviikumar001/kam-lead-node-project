@@ -2,7 +2,7 @@
 import bcrypt from "bcrypt";
 import { db } from "../db/index.js";
 import { users } from "../db/schema/index.js";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { APIError, ERROR_CODES } from "../utils/error.utils.js";
 import { generateTokens } from "../utils/jwt.utils.js";
 import { logger } from "../utils/logger.js";
@@ -23,7 +23,7 @@ export const registerUser = async (userData) => {
       .from(users)
       .where(eq(users.email, email))
       .limit(1);
-
+    console.log("existingUser", existingUser);
     if (existingUser.length > 0) {
       logger.warn("Registration failed - Email already exists", {
         email,
@@ -40,7 +40,7 @@ export const registerUser = async (userData) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const now = new Date("2025-01-05 05:06:20");
-
+    console.log("now", now);
     // Create user with all required fields
     const [newUser] = await db
       .insert(users)

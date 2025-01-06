@@ -1,40 +1,54 @@
 // src/middleware/auth.middleware.js
-import { verifyAccessToken } from "../utils/jwt.utils.js";
-import { APIError, ERROR_CODES } from "../utils/error.utils.js";
-import { logger } from "../utils/logger.js";
+import jwt from "jsonwebtoken";
+import { APIError } from "../utils/error.utils.js";
+import { db } from "../db/index.js";
+import { users } from "../db/schema/index.js";
+import { eq } from "drizzle-orm";
 
-export const authMiddleware = (req, res, next) => {
+export const authMiddleware = async (req, res, next) => {
   try {
-    const authHeader = req.headers["authorization"];
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw new APIError(
-        "Authentication required",
-        401,
-        ERROR_CODES.UNAUTHORIZED
-      );
-    }
-    const token = authHeader && authHeader.split(" ")[1];
-
-    if (!token) {
-      throw new APIError("No token provided", 401, ERROR_CODES.UNAUTHORIZED);
+    // 1. Get token from header
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      throw new APIError("No token provided", 401, "UNAUTHORIZED");
     }
 
-    const decoded = verifyAccessToken(token);
+    const token = authHeader.split(" ")[1];
 
-    // Add user info to request object
+    // 2. Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // 3. Get user from database using correct Drizzle syntax
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, decoded.userId))
+      .limit(1);
+
+    if (!user) {
+      throw new APIError("User not found", 401, "UNAUTHORIZED");
+    }
+
+    // 4. Attach user to request object
     req.user = {
-      userId: decoded.userId,
-      login: decoded.login,
-      role: decoded.role,
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      name: user.name,
     };
 
-    logger.debug("Token authenticated", {
-      login: decoded.login,
-      expiresAt: new Date(decoded.exp * 1000).toISOString(),
-    });
-
+    // 5. Add context data for the current time and user
+    req.context = {
+      currentTime: new Date(), // Captures exact time of the request
+      currentUser: req.user.email, // Uses the authenticated user's email
+    };
     next();
   } catch (error) {
-    next(error);
+    console.error("Auth Middleware Error:", error);
+    if (error instanceof jwt.JsonWebTokenError) {
+      next(new APIError("Invalid token", 401, "UNAUTHORIZED"));
+    } else {
+      next(error);
+    }
   }
 };

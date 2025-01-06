@@ -17,7 +17,46 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
-// Keep existing users table
+// 1. Define all ENUMs first
+
+export const leadStatus = pgEnum("lead_status", [
+  "NEW",
+  "CONTACTED",
+  "INTERESTED",
+  "NEGOTIATING",
+  "CONVERTED",
+  "NOT_INTERESTED",
+]);
+
+export const restaurantType = pgEnum("restaurant_type", [
+  "FINE_DINING",
+  "CASUAL_DINING",
+  "QSR",
+]);
+
+export const interactionType = pgEnum("interaction_type", ["CALL", "ORDER"]);
+
+export const interactionStatus = pgEnum("interaction_status", [
+  "COMPLETED",
+  "NO_ANSWER",
+  "FOLLOW_UP_NEEDED",
+]);
+
+export const callFrequency = pgEnum("call_frequency", [
+  "DAILY",
+  "WEEKLY",
+  "BIWEEKLY",
+  "MONTHLY",
+]);
+
+export const performanceStatus = pgEnum("performance_status", [
+  "HIGH_PERFORMING",
+  "STABLE",
+  "NEEDS_ATTENTION",
+  "UNDERPERFORMING",
+]);
+
+// 2. Define tables using the ENUMs
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: varchar("email", { length: 255 }).notNull().unique(),
@@ -29,69 +68,22 @@ export const users = pgTable("users", {
   tokenVersion: integer("token_version").notNull().default(0),
 });
 
-// Define ENUMs for leads
-const leadStatusEnum = pgEnum("lead_status", [
-  "NEW",
-  "CONTACTED",
-  "INTERESTED",
-  "NEGOTIATING",
-  "CONVERTED",
-  "NOT_INTERESTED",
-]);
-
-const restaurantTypeEnum = pgEnum("restaurant_type", [
-  "FINE_DINING",
-  "CASUAL_DINING",
-  "QSR",
-]);
-
-export const interactionTypeEnum = pgEnum("interaction_type", [
-  "CALL",
-  "ORDER",
-]);
-export const interactionStatusEnum = pgEnum("interaction_status", [
-  "COMPLETED",
-  "NO_ANSWER",
-  "FOLLOW_UP_NEEDED",
-]);
-
-// Define call frequency enum first
-export const callFrequencyEnum = pgEnum("call_frequency", [
-  "DAILY",
-  "WEEKLY",
-  "BIWEEKLY",
-  "MONTHLY",
-]);
-
-// New enum for performance status
-export const performanceStatusEnum = pgEnum("performance_status", [
-  "HIGH_PERFORMING",
-  "STABLE",
-  "NEEDS_ATTENTION",
-  "UNDERPERFORMING",
-]);
-
-// Updated leads table
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
   restaurantName: varchar("restaurant_name", { length: 255 }).notNull(),
   address: text("address").notNull(),
-  status: leadStatusEnum("status").notNull().default("NEW"),
-  restaurantType: restaurantTypeEnum("restaurant_type"),
+  status: leadStatus("status").notNull().default("NEW"),
+  restaurantType: restaurantType("restaurant_type"),
   notes: text("notes"),
-  callFrequency: integer("call_frequency"),
-  lastCallDate: timestamp("last_call_date"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
 
-  // New columns for call planning
+  // Call planning fields
   timezone: varchar("timezone", { length: 50 }).notNull().default("UTC"),
+  callFrequency: callFrequency("call_frequency"),
+  lastCallDate: timestamp("last_call_date"),
+  nextCallDate: timestamp("next_call_date"),
   businessHoursStart: time("business_hours_start"),
   businessHoursEnd: time("business_hours_end"),
-  callFrequency: callFrequencyEnum("call_frequency"),
-  nextCallDate: timestamp("next_call_date"),
-  lastCallDate: timestamp("last_call_date"),
   preferredCallDays: jsonb("preferred_call_days").default([
     "MONDAY",
     "TUESDAY",
@@ -99,6 +91,9 @@ export const leads = pgTable("leads", {
     "THURSDAY",
     "FRIDAY",
   ]),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const contacts = pgTable("contacts", {
@@ -113,7 +108,6 @@ export const contacts = pgTable("contacts", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Updated interactions table with pgEnum
 export const interactions = pgTable("interactions", {
   id: serial("id").primaryKey(),
   leadId: integer("lead_id")
@@ -122,46 +116,34 @@ export const interactions = pgTable("interactions", {
   contactId: integer("contact_id")
     .references(() => contacts.id)
     .notNull(),
-  // Using pgEnum instead of varchar
-  type: interactionTypeEnum("type").notNull(),
-  status: interactionStatusEnum("status").notNull(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  type: interactionType("type").notNull(),
+  status: interactionStatus("status").notNull(),
   details: text("details"),
-  // For orders specific data
   orderAmount: decimal("order_amount", { precision: 10, scale: 2 }).default(
     "0"
   ),
   orderItems: jsonb("order_items").default("{}"),
-  // Tracking fields
   createdBy: uuid("created_by").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Performance tracking table
 export const leadPerformance = pgTable("lead_performance", {
   id: serial("id").primaryKey(),
   leadId: integer("lead_id")
     .references(() => leads.id)
     .notNull(),
-
-  // Basic order metrics
   monthlyOrderCount: integer("monthly_order_count").default(0),
   lastOrderDate: timestamp("last_order_date"),
   averageOrderValue: numeric("average_order_value").default(0),
-
-  // Pattern tracking
-  orderFrequency: varchar("order_frequency", { length: 20 }), // DAILY, WEEKLY, MONTHLY
+  orderFrequency: varchar("order_frequency", { length: 20 }),
   preferredOrderDays: jsonb("preferred_order_days").default([]),
-
-  // Performance tracking
-  performanceStatus:
-    performanceStatusEnum("performance_status").default("STABLE"),
+  performanceStatus: performanceStatus("performance_status").default("STABLE"),
   lastStatusChange: timestamp("last_status_change"),
-
-  // Trend indicators
-  orderTrend: varchar("order_trend", { length: 20 }), // INCREASING, STABLE, DECREASING
-
-  // System fields - using context time
+  orderTrend: varchar("order_trend", { length: 20 }),
   createdAt: timestamp("created_at").notNull(),
   createdBy: varchar("created_by", { length: 255 }).notNull(),
   updatedAt: timestamp("updated_at").notNull(),

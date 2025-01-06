@@ -1,6 +1,6 @@
 // utils/validation/performance.validation.js
 import { z } from "zod";
-import { performanceStatusEnum } from "../../db/schema/index.js";
+import { performanceStatus } from "../../db/schema/index.js";
 
 export const performanceValidation = {
   leadId: z.object({
@@ -11,7 +11,7 @@ export const performanceValidation = {
   }),
 
   getPerformanceMetrics: z.object({
-    status: z.enum(performanceStatusEnum.enumValues).optional(),
+    status: z.enum(performanceStatus.enumValues).optional(),
     orderBy: z
       .enum(["monthlyOrderCount", "lastOrderDate", "averageOrderValue"])
       .optional(),

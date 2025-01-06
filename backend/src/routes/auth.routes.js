@@ -27,7 +27,7 @@ router.post(
 
 router.post("/login", validateRequest(loginSchema), asyncHandler(login));
 
-router.post("/refresh", asyncHandler(refresh));
+router.post("/refresh", authMiddleware, asyncHandler(refresh));
 
 router.post("/logout", asyncHandler(logout));
 

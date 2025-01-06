@@ -20,7 +20,7 @@ export class LeadService {
 
       return newLead[0];
     } catch (error) {
-      throw new DatabaseError("Failed to create lead");
+      throw new APIError("Failed to create lead");
     }
   }
 
@@ -43,7 +43,7 @@ export class LeadService {
 
       return updatedLead[0];
     } catch (error) {
-      throw new DatabaseError("Failed to update lead");
+      throw new APIError("Failed to update lead");
     }
   }
 
@@ -65,7 +65,7 @@ export class LeadService {
 
       return await query;
     } catch (error) {
-      throw new DatabaseError("Failed to fetch leads");
+      throw new APIError("Failed to fetch leads");
     }
   }
 
@@ -90,7 +90,7 @@ export class LeadService {
 
       return lead[0];
     } catch (error) {
-      throw new DatabaseError("Error finding lead");
+      throw new APIError("Error finding lead");
     }
   }
 }
