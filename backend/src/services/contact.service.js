@@ -2,11 +2,7 @@
 import { db } from "../db/index.js";
 import { contacts, leads } from "../db/schema/index.js";
 import { eq, and, desc } from "drizzle-orm";
-import {
-  NotFoundError,
-  DatabaseError,
-  ValidationError,
-} from "../utils/error.util.js";
+import { ERROR_CODES } from "../utils/error.utils.js";
 
 // Helper Functions
 const validateContactAccess = async (contactId, userId) => {
@@ -17,7 +13,12 @@ const validateContactAccess = async (contactId, userId) => {
     .where(and(eq(contacts.id, parseInt(contactId)), eq(leads.userId, userId)));
 
   if (!contact.length) {
-    throw new NotFoundError("Contact not found or unauthorized");
+    throw new APIError(
+      "Contact not found or unauthorized",
+      404,
+      ERROR_CODES,
+      NOT_FOUND
+    );
   }
 
   return contact[0].contacts;
@@ -40,7 +41,11 @@ export const createContact = async (contactData, leadId, userId) => {
       .where(and(eq(leads.id, leadId), eq(leads.userId, userId)));
 
     if (!lead.length) {
-      throw new NotFoundError("Lead not found or unauthorized");
+      throw new APIError(
+        "Lead not found or unauthorized",
+        404,
+        ERROR_CODES.NOT_FOUND
+      );
     }
 
     // If this contact is to be primary, unset any existing primary contact
@@ -60,8 +65,8 @@ export const createContact = async (contactData, leadId, userId) => {
 
     return newContact[0];
   } catch (error) {
-    if (error instanceof NotFoundError) throw error;
-    throw new DatabaseError("Failed to create contact");
+    if (error instanceof APIError) throw error;
+    throw new APIError("Failed to create contact", 500, ERROR_CODES.DB_ERROR);
   }
 };
 
@@ -84,8 +89,8 @@ export const updateContact = async (contactId, updateData, userId) => {
 
     return updatedContact[0];
   } catch (error) {
-    if (error instanceof NotFoundError) throw error;
-    throw new DatabaseError("Failed to update contact");
+    if (error instanceof APIError) throw error;
+    throw new APIError("Failed to update contact", 500, ERROR_CODES.DB_ERROR);
   }
 };
 
@@ -98,7 +103,11 @@ export const getContactsByLead = async (leadId, userId) => {
       .where(and(eq(leads.id, leadId), eq(leads.userId, userId)));
 
     if (!lead.length) {
-      throw new NotFoundError("Lead not found or unauthorized");
+      throw new APIError(
+        "Lead not found or unauthorized",
+        404,
+        ERROR_CODES.NOT_FOUND
+      );
     }
 
     const leadContacts = await db
@@ -109,8 +118,8 @@ export const getContactsByLead = async (leadId, userId) => {
 
     return leadContacts;
   } catch (error) {
-    if (error instanceof NotFoundError) throw error;
-    throw new DatabaseError("Failed to fetch contacts");
+    if (error instanceof APIError) throw error;
+    throw new APIError("Failed to fetch contacts", 404, ERROR_CODES.DB_ERROR);
   }
 };
 
@@ -119,8 +128,8 @@ export const getContactById = async (contactId, userId) => {
     const contact = await validateContactAccess(contactId, userId);
     return contact;
   } catch (error) {
-    if (error instanceof NotFoundError) throw error;
-    throw new DatabaseError("Failed to fetch contact");
+    if (error instanceof APIError) throw error;
+    throw new APIError("Failed to fetch contact", 500, ERROR_CODES.DB_ERROR);
   }
 };
 
@@ -135,13 +144,19 @@ export const deleteContact = async (contactId, userId) => {
       .where(eq(contacts.leadId, contact.leadId));
 
     if (contactCount[0].count === 1) {
-      throw new ValidationError("Cannot delete the only contact for a lead");
+      throw new APIError(
+        "Cannot delete the only contact for a lead",
+        400,
+        ERROR_CODES.VALIDATION_ERRORs
+      );
     }
 
     // If this is a primary contact, throw error unless it's the only contact
     if (contact.isPrimary && contactCount[0].count > 1) {
-      throw new ValidationError(
-        "Cannot delete primary contact. Please set another contact as primary first."
+      throw new APIError(
+        "Cannot delete primary contact. Please set another contact as primary first.",
+        400,
+        ERROR_CODES.VALIDATION_ERROR
       );
     }
 
@@ -149,8 +164,7 @@ export const deleteContact = async (contactId, userId) => {
 
     return true;
   } catch (error) {
-    if (error instanceof NotFoundError || error instanceof ValidationError)
-      throw error;
-    throw new DatabaseError("Failed to delete contact");
+    if (error instanceof APIError || error instanceof APIError) throw error;
+    throw new APIError("Failed to delete contact", 500, ERROR_CODES.DB_ERROR);
   }
 };

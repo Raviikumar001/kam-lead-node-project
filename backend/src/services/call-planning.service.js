@@ -1,9 +1,9 @@
 // src/services/call-planning.service.js
 import { DateTime } from "luxon";
-import { db } from "../db";
-import { leads } from "../db/schema";
+import { db } from "../db/index.js";
+import { leads } from "../db/schema/index.js";
 import { eq, and, gte, lte } from "drizzle-orm";
-import { APIError, ERROR_CODES } from "../utils/error.utils";
+import { APIError, ERROR_CODES } from "../utils/error.utils.js";
 
 export const CallPlanningService = {
   async getTodaysCalls(

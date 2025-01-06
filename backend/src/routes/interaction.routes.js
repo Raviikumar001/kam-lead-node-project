@@ -8,11 +8,8 @@ import {
 } from "../controllers/interaction.controller.js";
 import { validateRequest } from "../utils/validation/index.js";
 import { createInteractionSchema } from "../utils/validation/interaction.validation.js";
-import { authMiddleware } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
-
-router.use(authMiddleware);
 
 router.post(
   "/",

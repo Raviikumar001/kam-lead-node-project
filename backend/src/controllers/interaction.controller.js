@@ -2,11 +2,10 @@
 import {
   createInteraction,
   getInteractionsByLead,
-  getInteractionById,
   getLastInteractionForLead,
   getLeadInteractionStats,
 } from "../services/interaction.service.js";
-import { errorHandler } from "../utils/error.util.js";
+import { errorHandler } from "../utils/error.utils.js";
 
 export const createInteractionHandler = async (req, res) => {
   try {

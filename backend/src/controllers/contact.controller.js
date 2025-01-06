@@ -6,7 +6,7 @@ import {
   getContactById,
   deleteContact,
 } from "../services/contact.service.js";
-import { errorHandler } from "../utils/error.util.js";
+import { errorHandler } from "../utils/error.utils.js";
 
 export const createContactHandler = async (req, res) => {
   try {

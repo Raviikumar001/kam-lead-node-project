@@ -6,7 +6,6 @@ import { errorHandler, notFoundHandler } from "./src/utils/error.utils.js";
 import routes from "./src/routes/index.js";
 import { requestLoggerMiddleware } from "./src/utils/logger.js";
 import { logger } from "./src/utils/logger.js";
-
 dotenv.config();
 
 const app = express();

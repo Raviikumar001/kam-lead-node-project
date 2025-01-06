@@ -11,6 +11,8 @@ import {
   decimal,
   pgEnum,
   index,
+  time,
+  numeric,
   uuid,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
@@ -59,6 +61,14 @@ export const callFrequencyEnum = pgEnum("call_frequency", [
   "WEEKLY",
   "BIWEEKLY",
   "MONTHLY",
+]);
+
+// New enum for performance status
+export const performanceStatusEnum = pgEnum("performance_status", [
+  "HIGH_PERFORMING",
+  "STABLE",
+  "NEEDS_ATTENTION",
+  "UNDERPERFORMING",
 ]);
 
 // Updated leads table
@@ -127,6 +137,54 @@ export const interactions = pgTable("interactions", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Performance tracking table
+export const leadPerformance = pgTable("lead_performance", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id")
+    .references(() => leads.id)
+    .notNull(),
+
+  // Basic order metrics
+  monthlyOrderCount: integer("monthly_order_count").default(0),
+  lastOrderDate: timestamp("last_order_date"),
+  averageOrderValue: numeric("average_order_value").default(0),
+
+  // Pattern tracking
+  orderFrequency: varchar("order_frequency", { length: 20 }), // DAILY, WEEKLY, MONTHLY
+  preferredOrderDays: jsonb("preferred_order_days").default([]),
+
+  // Performance tracking
+  performanceStatus:
+    performanceStatusEnum("performance_status").default("STABLE"),
+  lastStatusChange: timestamp("last_status_change"),
+
+  // Trend indicators
+  orderTrend: varchar("order_trend", { length: 20 }), // INCREASING, STABLE, DECREASING
+
+  // System fields - using context time
+  createdAt: timestamp("created_at").notNull(),
+  createdBy: varchar("created_by", { length: 255 }).notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+  updatedBy: varchar("updated_by", { length: 255 }).notNull(),
+});
+
+// Order history table for pattern analysis
+export const orderHistory = pgTable("order_history", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id")
+    .references(() => leads.id)
+    .notNull(),
+
+  orderValue: numeric("order_value").notNull(),
+  orderDate: timestamp("order_date").notNull(),
+
+  // System fields - using context time
+  createdAt: timestamp("created_at").notNull(),
+  createdBy: varchar("created_by", { length: 255 }).notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
+  updatedBy: varchar("updated_by", { length: 255 }).notNull(),
+});
+
 // Then define relations
 export const usersRelations = relations(users, ({ many }) => ({
   leads: many(leads),
@@ -165,7 +223,7 @@ export const interactionsByLeadIndex = index(
   interactions.leadId
 );
 
-export const nextCallDateIndex = pgIndex(
+export const nextCallDateIndex = index(
   "idx_leads_next_call_date",
   leads.nextCallDate
 );

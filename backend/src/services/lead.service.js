@@ -2,11 +2,7 @@
 import { db } from "../db/index.js";
 import { leads } from "../db/schema/index.js";
 import { eq, desc, sql } from "drizzle-orm";
-import {
-  NotFoundError,
-  UnauthorizedError,
-  DatabaseError,
-} from "../utils/error.util.js"; // Using existing error utilities
+import { APIError } from "../utils/error.utils.js"; // Using existing error utilities
 
 export class LeadService {
   async createLead(leadData, userId) {
@@ -32,7 +28,7 @@ export class LeadService {
     const existingLead = await this.findLeadByIdAndUser(id, userId);
 
     if (!existingLead) {
-      throw new NotFoundError("Lead not found or unauthorized");
+      throw new APIError("Lead not found or unauthorized");
     }
 
     try {
@@ -77,7 +73,7 @@ export class LeadService {
     const lead = await this.findLeadByIdAndUser(id, userId);
 
     if (!lead) {
-      throw new NotFoundError("Lead not found or unauthorized");
+      throw new APIError("Lead not found or unauthorized");
     }
 
     return lead;

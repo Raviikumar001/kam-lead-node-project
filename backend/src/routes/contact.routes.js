@@ -13,11 +13,8 @@ import {
   createContactSchema,
   updateContactSchema,
 } from "../utils/validation/contact.validation.js";
-import { authMiddleware } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
-
-router.use(authMiddleware);
 
 // Validation middleware will validate the request before it reaches the handler
 router.post("/", validateRequest(createContactSchema), createContactHandler);

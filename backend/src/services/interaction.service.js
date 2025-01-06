@@ -2,7 +2,7 @@
 import { db } from "../db/index.js";
 import { interactions, leads, contacts } from "../db/schema/index.js";
 import { eq, and } from "drizzle-orm";
-import { NotFoundError, DatabaseError } from "../utils/error.util.js";
+import { APIError, ERROR_CODES } from "../utils/error.utils.js";
 
 // Create new interaction (call or order)
 export const createInteraction = async (interactionData, userId) => {
@@ -19,7 +19,11 @@ export const createInteraction = async (interactionData, userId) => {
 
     return newInteraction[0];
   } catch (error) {
-    throw new DatabaseError("Failed to create interaction");
+    throw new APIError(
+      "Failed to create interaction",
+      500,
+      ERROR_CODES.DB_ERROR
+    );
   }
 };
 
@@ -45,7 +49,11 @@ export const getInteractionsByLead = async (leadId, filters = {}) => {
 
     return await query;
   } catch (error) {
-    throw new DatabaseError("Failed to fetch interactions");
+    throw new APIError(
+      "Failed to fetch interactions",
+      500,
+      ERROR_CODES.DB_ERROR
+    );
   }
 };
 
@@ -60,7 +68,11 @@ export const getLastInteractionForLead = async (leadId) => {
 
     return lastInteraction[0] || null;
   } catch (error) {
-    throw new DatabaseError("Failed to fetch last interaction");
+    throw new APIError(
+      "Failed to fetch last interaction",
+      500,
+      ERROR_CODES.DB_ERROR
+    );
   }
 };
 
@@ -87,6 +99,10 @@ export const getLeadInteractionStats = async (leadId) => {
       }
     );
   } catch (error) {
-    throw new DatabaseError("Failed to fetch interaction statistics");
+    throw new APIError(
+      "Failed to fetch interaction statistics",
+      500,
+      ERROR_CODES.DB_ERROR
+    );
   }
 };

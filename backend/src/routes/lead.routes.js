@@ -11,12 +11,8 @@ import {
   createLeadSchema,
   updateLeadSchema,
 } from "../utils/validation/index.js";
-import { authMiddleware } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
-
-// All routes are protected by auth middleware
-router.use(authMiddleware);
 
 router.post("/", validateRequest(createLeadSchema), createLead);
 router.patch("/:id", validateRequest(updateLeadSchema), updateLead);

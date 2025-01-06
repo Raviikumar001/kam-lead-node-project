@@ -1,5 +1,5 @@
 // src/middleware/call.middleware.js
-import { CallPlanningSchema } from "../utils/validation";
+import { CallPlanningSchema } from "../utils/validation/call.validation.js";
 
 export const validateRequest = {
   todaysCalls: async (req, res, next) => {
