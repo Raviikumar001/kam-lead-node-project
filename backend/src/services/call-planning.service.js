@@ -2,48 +2,49 @@
 import { DateTime } from "luxon";
 import { db } from "../db/index.js";
 import { leads } from "../db/schema/index.js";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { APIError, ERROR_CODES } from "../utils/error.utils.js";
 
 export const CallPlanningService = {
-  async getTodaysCalls(userTimezone, context) {
+  async getTodaysCalls(timezone, context) {
     try {
-      console.log("Context:", {
-        currentTime: context.currentTime,
-        currentUser: context.currentUser,
-        userTimezone,
-      });
+      console.log("Processing getTodaysCalls request:", { timezone, context });
 
-      const userDateTime = DateTime.fromJSDate(context.currentTime).setZone(
-        userTimezone
-      );
-
-      if (!userDateTime.isValid) {
+      // Validate timezone
+      if (!DateTime.local().setZone(timezone).isValid) {
         throw new APIError(
-          `Invalid timezone: ${userTimezone}`,
+          `Invalid timezone: ${timezone}`,
           400,
           ERROR_CODES.VALIDATION_ERROR
         );
       }
 
+      // Get current date in user's timezone
+      const userDateTime = DateTime.fromJSDate(context.currentTime).setZone(
+        timezone
+      );
+
+      // Get start and end of today in user's timezone
       const startOfDay = userDateTime.startOf("day");
       const endOfDay = userDateTime.endOf("day");
 
-      console.log("Query parameters:", {
+      console.log("Debug - Time Range:", {
+        date: userDateTime.toFormat("yyyy-MM-dd"),
         startOfDay: startOfDay.toISO(),
         endOfDay: endOfDay.toISO(),
-        userTimezone,
+        startOfDayUTC: startOfDay.toUTC().toISO(),
+        endOfDayUTC: endOfDay.toUTC().toISO(),
       });
+
+      // Convert to UTC for database query
+      const startUtc = startOfDay.toUTC();
+      const endUtc = endOfDay.toUTC();
 
       const calls = await db
         .select({
           id: leads.id,
-          userId: leads.userId,
           restaurantName: leads.restaurantName,
-          address: leads.address,
           status: leads.status,
-          restaurantType: leads.restaurantType,
-          notes: leads.notes,
           timezone: leads.timezone,
           callFrequency: leads.callFrequency,
           lastCallDate: leads.lastCallDate,
@@ -51,117 +52,71 @@ export const CallPlanningService = {
           businessHoursStart: leads.businessHoursStart,
           businessHoursEnd: leads.businessHoursEnd,
           preferredCallDays: leads.preferredCallDays,
-          createdAt: leads.createdAt,
-          updatedAt: leads.updatedAt,
         })
         .from(leads)
         .where(
           and(
-            gte(leads.nextCallDate, startOfDay.toJSDate()),
-            lte(leads.nextCallDate, endOfDay.toJSDate())
+            sql`next_call_date IS NOT NULL`,
+            // Use UTC times for comparison
+            gte(leads.nextCallDate, startUtc.toJSDate()),
+            lte(leads.nextCallDate, endUtc.toJSDate())
           )
-        );
+        )
+        .orderBy(leads.nextCallDate);
 
       console.log(`Found ${calls.length} calls before filtering`);
 
-      const validCalls = calls.filter((lead) => {
-        if (!lead.nextCallDate) {
-          console.log(`Skipping lead ${lead.id}: No next call date`);
-          return false;
-        }
-
-        const leadCallTime = DateTime.fromJSDate(lead.nextCallDate).setZone(
-          lead.timezone
+      // Filter and format calls
+      const validCalls = calls.map((call) => {
+        // Convert call times to lead's timezone
+        const nextCallLocal = DateTime.fromJSDate(call.nextCallDate).setZone(
+          call.timezone
         );
 
-        if (!leadCallTime.isValid) {
-          console.warn(
-            `Invalid timezone for lead ${lead.id}: ${lead.timezone}`
-          );
-          return false;
-        }
+        // Convert to user's timezone for display
+        const nextCallUser = nextCallLocal.setZone(timezone);
 
-        if (!lead.businessHoursStart || !lead.businessHoursEnd) {
-          console.warn(`Missing business hours for lead ${lead.id}`);
-          return false;
-        }
-
-        // Convert TIME type to HH:mm format
-        const startTime = lead.businessHoursStart.toString().slice(0, 5);
-        const endTime = lead.businessHoursEnd.toString().slice(0, 5);
-
-        const [startHour, startMinute] = startTime.split(":");
-        const [endHour, endMinute] = endTime.split(":");
-
-        const businessStart = leadCallTime.set({
-          hour: parseInt(startHour),
-          minute: parseInt(startMinute),
-        });
-
-        let businessEnd = leadCallTime.set({
-          hour: parseInt(endHour),
-          minute: parseInt(endMinute),
-        });
-
-        if (businessEnd < businessStart) {
-          businessEnd = businessEnd.plus({ days: 1 });
-        }
-
-        const isWithinHours =
-          leadCallTime >= businessStart && leadCallTime <= businessEnd;
-
-        if (!isWithinHours) {
-          console.log(`Lead ${lead.id} call time outside business hours`);
-        }
-
-        return isWithinHours;
+        return {
+          id: call.id,
+          restaurantName: call.restaurantName,
+          status: call.status,
+          callDetails: {
+            frequency: call.callFrequency,
+            lastCallDate: call.lastCallDate
+              ? DateTime.fromJSDate(call.lastCallDate).toISO()
+              : null,
+            nextCallDate: nextCallLocal.toISO(),
+            timezone: call.timezone,
+            businessHours: {
+              start: call.businessHoursStart.toString().slice(0, 5),
+              end: call.businessHoursEnd.toString().slice(0, 5),
+            },
+            preferredCallDays: call.preferredCallDays,
+            scheduledTime: {
+              local: nextCallLocal.toFormat("yyyy-MM-dd HH:mm:ss"),
+              user: nextCallUser.toFormat("yyyy-MM-dd HH:mm:ss"),
+            },
+          },
+        };
       });
 
       console.log(`Returning ${validCalls.length} valid calls`);
 
-      return validCalls.map((call) => ({
-        id: call.id,
-        userId: call.userId,
-        restaurantName: call.restaurantName,
-        address: call.address,
-        status: call.status,
-        restaurantType: call.restaurantType,
-        notes: call.notes,
-        callDetails: {
-          timezone: call.timezone,
-          frequency: call.callFrequency,
-          lastCallDate: call.lastCallDate,
-          nextCallDate: call.nextCallDate,
-          businessHours: {
-            start: call.businessHoursStart.toString().slice(0, 5),
-            end: call.businessHoursEnd.toString().slice(0, 5),
-          },
-          preferredCallDays: call.preferredCallDays || [
-            "MONDAY",
-            "TUESDAY",
-            "WEDNESDAY",
-            "THURSDAY",
-            "FRIDAY",
-          ],
-          scheduledTime: {
-            local: DateTime.fromJSDate(call.nextCallDate)
-              .setZone(call.timezone)
-              .toFormat("yyyy-MM-dd HH:mm:ss"),
-            user: DateTime.fromJSDate(call.nextCallDate)
-              .setZone(userTimezone)
-              .toFormat("yyyy-MM-dd HH:mm:ss"),
-          },
+      return {
+        total: validCalls.length,
+        calls: validCalls,
+        timeRange: {
+          date: userDateTime.toFormat("yyyy-MM-dd"),
+          startTime: startOfDay.toFormat("HH:mm:ss"),
+          endTime: endOfDay.toFormat("HH:mm:ss"),
+          timezone: timezone,
         },
-        metadata: {
-          createdAt: call.createdAt,
-          updatedAt: call.updatedAt,
-        },
-      }));
+      };
     } catch (error) {
       console.error("Error in getTodaysCalls:", error);
       if (error instanceof APIError) throw error;
       throw new APIError(
-        `Failed to fetch today's calls: ${error.message}`,
+        `Failed to get today's calls: ${error.message}`,
         500,
         ERROR_CODES.DATABASE_ERROR
       );
@@ -171,6 +126,7 @@ export const CallPlanningService = {
   async updateCallSchedule(leadId, callCompletedTime, context) {
     try {
       return await db.transaction(async (trx) => {
+        // First get the lead
         const [lead] = await trx
           .select()
           .from(leads)
@@ -201,13 +157,13 @@ export const CallPlanningService = {
           completedDateTime
         );
 
+        // Update without updated_by field
         await trx
           .update(leads)
           .set({
             lastCallDate: completedDateTime.toJSDate(),
             nextCallDate: nextCallDate.toJSDate(),
             updatedAt: context.currentTime,
-            updatedBy: context.currentUser,
           })
           .where(eq(leads.id, leadId));
 
@@ -232,6 +188,34 @@ export const CallPlanningService = {
   },
 
   calculateNextCallDate(lead, fromTime) {
+    // Validate required fields
+    if (!lead.callFrequency) {
+      throw new APIError(
+        "Call frequency not set for this lead. Please set call frequency first.",
+        400,
+        ERROR_CODES.VALIDATION_ERROR
+      );
+    }
+
+    if (!lead.businessHoursStart || !lead.businessHoursEnd) {
+      throw new APIError(
+        "Business hours not set for this lead. Please set business hours first.",
+        400,
+        ERROR_CODES.VALIDATION_ERROR
+      );
+    }
+
+    if (
+      !Array.isArray(lead.preferredCallDays) ||
+      lead.preferredCallDays.length === 0
+    ) {
+      throw new APIError(
+        "Preferred call days not set for this lead. Please set preferred call days first.",
+        400,
+        ERROR_CODES.VALIDATION_ERROR
+      );
+    }
+
     let nextCall = fromTime.setZone(lead.timezone);
     if (!nextCall.isValid) {
       throw new APIError(
@@ -241,24 +225,35 @@ export const CallPlanningService = {
       );
     }
 
-    const [startHour, startMinute] = lead.businessHoursStart.split(":");
-    const [endHour, endMinute] = lead.businessHoursEnd.split(":");
+    const [startHour, startMinute] = lead.businessHoursStart
+      .toString()
+      .slice(0, 5)
+      .split(":");
+    const [endHour, endMinute] = lead.businessHoursEnd
+      .toString()
+      .slice(0, 5)
+      .split(":");
 
     const businessStart = nextCall.set({
       hour: parseInt(startHour),
       minute: parseInt(startMinute),
     });
 
+    // If current time is past business hours, schedule for next day
     if (nextCall.hour >= parseInt(endHour)) {
-      nextCall = nextCall.plus({ days: 1 }).set({
-        hour: parseInt(startHour),
-        minute: parseInt(startMinute),
-      });
+      nextCall = businessStart.plus({ days: 1 });
+    } else if (nextCall.hour < parseInt(startHour)) {
+      nextCall = businessStart;
     }
 
-    switch (lead.frequency) {
+    // Calculate next call based on frequency
+    switch (
+      lead.callFrequency // Note: changed from lead.frequency to lead.callFrequency
+    ) {
       case "DAILY":
-        nextCall = nextCall.plus({ days: 1 });
+        if (nextCall.hour >= parseInt(endHour)) {
+          nextCall = nextCall.plus({ days: 1 });
+        }
         break;
       case "WEEKLY":
         nextCall = nextCall.plus({ weeks: 1 });
@@ -271,18 +266,20 @@ export const CallPlanningService = {
         break;
       default:
         throw new APIError(
-          `Invalid frequency: ${lead.frequency}`,
+          `Invalid frequency: ${lead.callFrequency}`,
           400,
           ERROR_CODES.VALIDATION_ERROR
         );
     }
 
+    // Find next preferred day
     let attempts = 0;
     const maxAttempts = 14;
+    const preferredDays = lead.preferredCallDays.map((day) =>
+      day.toUpperCase()
+    );
 
-    while (
-      !lead.preferredCallDays.includes(nextCall.weekdayLong.toUpperCase())
-    ) {
+    while (!preferredDays.includes(nextCall.weekdayLong.toUpperCase())) {
       nextCall = nextCall.plus({ days: 1 });
       attempts++;
 

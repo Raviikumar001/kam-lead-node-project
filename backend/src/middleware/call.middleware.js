@@ -8,7 +8,7 @@ const createContext = (req) => ({
   userTimezone: req.query.timezone || "UTC",
 });
 
-const handleValidationError = (error, res) => {
+const handleValidationError = (error, req, res) => {
   const errorMessage = error.errors?.[0]?.message || "Validation failed";
 
   return res.status(400).json({
@@ -32,7 +32,7 @@ export const validateRequest = {
 
       next();
     } catch (error) {
-      handleValidationError(error, res);
+      handleValidationError(error, req, res);
     }
   },
 
