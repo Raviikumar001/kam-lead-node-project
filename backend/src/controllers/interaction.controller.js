@@ -58,8 +58,8 @@ export const getLastInteractionHandler = async (req, res) => {
       status: "success",
       data: lastInteraction,
       metadata: {
-        timestamp: "2025-01-05 18:02:43", // Using current system time
-        user: "ravi-hisoka", // Using current user
+        timestamp: new Date(), // Using current system time
+        user: req.user, // Using current user
       },
     });
   } catch (error) {

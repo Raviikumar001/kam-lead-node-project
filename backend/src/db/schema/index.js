@@ -53,6 +53,14 @@ export const interactionStatusEnum = pgEnum("interaction_status", [
   "FOLLOW_UP_NEEDED",
 ]);
 
+// Define call frequency enum first
+export const callFrequencyEnum = pgEnum("call_frequency", [
+  "DAILY",
+  "WEEKLY",
+  "BIWEEKLY",
+  "MONTHLY",
+]);
+
 // Updated leads table
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
@@ -66,6 +74,21 @@ export const leads = pgTable("leads", {
   lastCallDate: timestamp("last_call_date"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+
+  // New columns for call planning
+  timezone: varchar("timezone", { length: 50 }).notNull().default("UTC"),
+  businessHoursStart: time("business_hours_start"),
+  businessHoursEnd: time("business_hours_end"),
+  callFrequency: callFrequencyEnum("call_frequency"),
+  nextCallDate: timestamp("next_call_date"),
+  lastCallDate: timestamp("last_call_date"),
+  preferredCallDays: jsonb("preferred_call_days").default([
+    "MONDAY",
+    "TUESDAY",
+    "WEDNESDAY",
+    "THURSDAY",
+    "FRIDAY",
+  ]),
 });
 
 export const contacts = pgTable("contacts", {
@@ -140,4 +163,9 @@ export const interactionsRelations = relations(interactions, ({ one }) => ({
 export const interactionsByLeadIndex = index(
   "idx_interactions_lead_id",
   interactions.leadId
+);
+
+export const nextCallDateIndex = pgIndex(
+  "idx_leads_next_call_date",
+  leads.nextCallDate
 );
