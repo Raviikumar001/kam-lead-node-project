@@ -2,7 +2,8 @@
 import { db } from "../db/index.js";
 import { contacts, leads } from "../db/schema/index.js";
 import { eq, and, desc } from "drizzle-orm";
-import { ERROR_CODES } from "../utils/error.utils.js";
+import { ERROR_CODES, APIError } from "../utils/error.utils.js";
+import { sql } from "drizzle-orm";
 
 // Helper Functions
 const validateContactAccess = async (contactId, userId) => {
@@ -35,6 +36,7 @@ const unsetPrimaryContact = async (leadId) => {
 export const createContact = async (contactData, leadId, userId) => {
   try {
     // Verify the lead exists and belongs to the user
+    console.log(contactData, leadId, userId);
     const lead = await db
       .select()
       .from(leads)
@@ -135,24 +137,31 @@ export const getContactById = async (contactId, userId) => {
 
 export const deleteContact = async (contactId, userId) => {
   try {
-    const contact = await validateContactAccess(contactId, userId);
+    console.log("Deleting contact:", { contactId, userId });
 
-    // Check if this is the only contact for the lead
-    const contactCount = await db
-      .select({ count: sql`count(*)` })
+    // 1. Validate contact access
+    const contact = await validateContactAccess(contactId, userId);
+    console.log("Validated contact:", contact);
+
+    // 2. Count total contacts for this lead using the correct syntax
+    const [countResult] = await db
+      .select({ count: sql`cast(count(*) as integer)` })
       .from(contacts)
       .where(eq(contacts.leadId, contact.leadId));
 
-    if (contactCount[0].count === 1) {
+    console.log("Contact count:", countResult);
+
+    // 3. Check if this is the only contact
+    if (countResult.count === 1) {
       throw new APIError(
         "Cannot delete the only contact for a lead",
         400,
-        ERROR_CODES.VALIDATION_ERRORs
+        ERROR_CODES.VALIDATION_ERROR
       );
     }
 
-    // If this is a primary contact, throw error unless it's the only contact
-    if (contact.isPrimary && contactCount[0].count > 1) {
+    // 4. Check primary contact condition
+    if (contact.isPrimary && countResult.count > 1) {
       throw new APIError(
         "Cannot delete primary contact. Please set another contact as primary first.",
         400,
@@ -160,11 +169,18 @@ export const deleteContact = async (contactId, userId) => {
       );
     }
 
-    await db.delete(contacts).where(eq(contacts.id, parseInt(contactId)));
+    // 5. Delete the contact
+    const [deletedContact] = await db
+      .delete(contacts)
+      .where(eq(contacts.id, contactId))
+      .returning();
+
+    console.log("Deleted contact:", deletedContact);
 
     return true;
   } catch (error) {
-    if (error instanceof APIError || error instanceof APIError) throw error;
+    console.error("Delete contact error:", error);
+    if (error instanceof APIError) throw error;
     throw new APIError("Failed to delete contact", 500, ERROR_CODES.DB_ERROR);
   }
 };

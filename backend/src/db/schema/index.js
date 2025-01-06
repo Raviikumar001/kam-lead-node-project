@@ -34,7 +34,11 @@ export const restaurantType = pgEnum("restaurant_type", [
   "QSR",
 ]);
 
-export const interactionType = pgEnum("interaction_type", ["CALL", "ORDER"]);
+export const interactionType = pgEnum("interaction_type", [
+  "CALL",
+  "ORDER",
+  "EMAIL",
+]);
 
 export const interactionStatus = pgEnum("interaction_status", [
   "COMPLETED",
@@ -121,14 +125,21 @@ export const interactions = pgTable("interactions", {
     .notNull(),
   type: interactionType("type").notNull(),
   status: interactionStatus("status").notNull(),
-  details: text("details"),
-  orderAmount: decimal("order_amount", { precision: 10, scale: 2 }).default(
-    "0"
-  ),
-  orderItems: jsonb("order_items").default("{}"),
-  createdBy: uuid("created_by").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  details: text("details").notNull(), // Make it required since it's important for tracking
+  orderAmount: decimal("order_amount", { precision: 10, scale: 2 })
+    .default("0")
+    .notNull(), // Make it not null with default
+  orderItems: jsonb("order_items").default("{}").notNull(), // Make it not null with default
+  // Consider changing createdBy to match users table's id type
+  createdBy: integer("created_by")
+    .references(() => users.id)
+    .notNull(), // Change to integer to match user.id
+  createdAt: timestamp("created_at", { withTimezone: true }) // Add timezone support
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }) // Add timezone support
+    .defaultNow()
+    .notNull(),
 });
 
 export const leadPerformance = pgTable("lead_performance", {

@@ -20,48 +20,76 @@ export const createInteractionHandler = async (req, res) => {
   }
 };
 
-export const getInteractionsByLeadHandler = async (req, res) => {
+export const getInteractionsByLeadHandler = async (req, res, next) => {
   try {
     const { leadId } = req.params;
-    const interactions = await getInteractionsByLead(leadId, req.query);
+    const filters = {
+      type: req.query.type,
+      status: req.query.status,
+      startDate: req.query.startDate,
+      endDate: req.query.endDate,
+    };
 
-    return res.status(200).json({
+    // Validate leadId
+    if (!leadId || isNaN(parseInt(leadId))) {
+      throw new APIError("Invalid lead ID", 400, ERROR_CODES.VALIDATION_ERROR);
+    }
+
+    const interactions = await getInteractionsByLead(parseInt(leadId), filters);
+
+    res.json({
       status: "success",
       data: interactions,
     });
   } catch (error) {
-    return errorHandler(error, req, res);
+    next(error);
   }
 };
 
-export const getLeadInteractionStatsHandler = async (req, res) => {
+export const getLastInteractionHandler = async (req, res, next) => {
   try {
     const { leadId } = req.params;
-    const stats = await getLeadInteractionStats(leadId);
 
-    return res.status(200).json({
+    // Validate leadId
+    if (!leadId || isNaN(parseInt(leadId))) {
+      throw new APIError("Invalid lead ID", 400, ERROR_CODES.VALIDATION_ERROR);
+    }
+
+    const interaction = await getLastInteractionForLead(parseInt(leadId));
+
+    if (!interaction) {
+      return res.json({
+        status: "success",
+        data: null,
+        message: "No interactions found for this lead",
+      });
+    }
+
+    res.json({
+      status: "success",
+      data: interaction,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getLeadInteractionStatsHandler = async (req, res, next) => {
+  try {
+    const { leadId } = req.params;
+
+    // Validate leadId
+    if (!leadId || isNaN(parseInt(leadId))) {
+      throw new APIError("Invalid lead ID", 400, ERROR_CODES.VALIDATION_ERROR);
+    }
+
+    const stats = await getLeadInteractionStats(parseInt(leadId));
+
+    res.json({
       status: "success",
       data: stats,
     });
   } catch (error) {
-    return errorHandler(error, req, res);
-  }
-};
-
-export const getLastInteractionHandler = async (req, res) => {
-  try {
-    const { leadId } = req.params;
-    const lastInteraction = await getLastInteractionForLead(leadId);
-
-    return res.status(200).json({
-      status: "success",
-      data: lastInteraction,
-      metadata: {
-        timestamp: new Date(), // Using current system time
-        user: req.user, // Using current user
-      },
-    });
-  } catch (error) {
-    return errorHandler(error, req, res);
+    next(error);
   }
 };
