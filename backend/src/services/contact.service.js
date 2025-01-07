@@ -33,7 +33,6 @@ const unsetPrimaryContact = async (leadId) => {
 
 export const createContact = async (contactData, leadId, userId) => {
   try {
-    console.log(contactData, leadId, userId);
     const lead = await db
       .select()
       .from(leads)
@@ -132,17 +131,12 @@ export const getContactById = async (contactId, userId) => {
 
 export const deleteContact = async (contactId, userId) => {
   try {
-    console.log("Deleting contact:", { contactId, userId });
-
     const contact = await validateContactAccess(contactId, userId);
-    console.log("Validated contact:", contact);
 
     const [countResult] = await db
       .select({ count: sql`cast(count(*) as integer)` })
       .from(contacts)
       .where(eq(contacts.leadId, contact.leadId));
-
-    console.log("Contact count:", countResult);
 
     if (countResult.count === 1) {
       throw new APIError(
@@ -164,8 +158,6 @@ export const deleteContact = async (contactId, userId) => {
       .delete(contacts)
       .where(eq(contacts.id, contactId))
       .returning();
-
-    console.log("Deleted contact:", deletedContact);
 
     return true;
   } catch (error) {

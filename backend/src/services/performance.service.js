@@ -8,8 +8,6 @@ import { DateTime } from "luxon";
 export const PerformanceService = {
   async getLeadPerformance(leadId, context) {
     try {
-      console.log("Fetching performance for lead:", leadId);
-
       const [lead] = await db.select().from(leads).where(eq(leads.id, leadId));
 
       if (!lead) {
@@ -96,11 +94,6 @@ export const PerformanceService = {
 
   async updateOrderHistory(orderData, context) {
     try {
-      console.log("Starting updateOrderHistory service:", {
-        orderData,
-        context,
-      });
-
       return await db.transaction(async (trx) => {
         const [lead] = await trx
           .select()
@@ -126,8 +119,6 @@ export const PerformanceService = {
           })
           .returning();
 
-        console.log("Order inserted:", newOrder);
-
         const thirtyDaysAgo = DateTime.fromJSDate(context.currentTime)
           .minus({ days: 30 })
           .toJSDate();
@@ -143,8 +134,6 @@ export const PerformanceService = {
           )
           .orderBy(desc(orderHistory.orderDate));
 
-        console.log("Found orders:", orders);
-
         const metrics = {
           monthlyOrderCount: orders.length,
           lastOrderDate: orders[0].orderDate,
@@ -157,8 +146,6 @@ export const PerformanceService = {
           lastStatusChange: context.currentTime,
           orderTrend: "STABLE",
         };
-
-        console.log("Calculated metrics:", metrics);
 
         const existingMetrics = await trx
           .select()
@@ -206,8 +193,6 @@ export const PerformanceService = {
             .returning();
         }
 
-        console.log("Updated metrics:", updatedMetrics);
-
         return {
           leadId: orderData.leadId,
           metrics: {
@@ -238,8 +223,6 @@ export const PerformanceService = {
 
   async getLeadsByPerformance(filters, context) {
     try {
-      console.log("Processing getLeadsByPerformance:", { filters, context });
-
       let whereClause = undefined;
       if (filters.status) {
         whereClause = eq(leadPerformance.performanceStatus, filters.status);
@@ -280,8 +263,6 @@ export const PerformanceService = {
             ? desc(orderByColumn)
             : asc(orderByColumn)
         );
-
-      console.log(`Found ${performanceData.length} leads matching criteria`);
 
       return {
         total: performanceData.length,

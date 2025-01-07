@@ -8,8 +8,6 @@ import { APIError, ERROR_CODES } from "../utils/error.utils.js";
 export const CallPlanningService = {
   async getTodaysCalls(timezone, context) {
     try {
-      console.log("Processing getTodaysCalls request:", { timezone, context });
-
       if (!DateTime.local().setZone(timezone).isValid) {
         throw new APIError(
           `Invalid timezone: ${timezone}`,
@@ -24,14 +22,6 @@ export const CallPlanningService = {
 
       const startOfDay = userDateTime.startOf("day");
       const endOfDay = userDateTime.endOf("day");
-
-      console.log("Debug - Time Range:", {
-        date: userDateTime.toFormat("yyyy-MM-dd"),
-        startOfDay: startOfDay.toISO(),
-        endOfDay: endOfDay.toISO(),
-        startOfDayUTC: startOfDay.toUTC().toISO(),
-        endOfDayUTC: endOfDay.toUTC().toISO(),
-      });
 
       const startUtc = startOfDay.toUTC();
       const endUtc = endOfDay.toUTC();
@@ -59,8 +49,6 @@ export const CallPlanningService = {
           )
         )
         .orderBy(leads.nextCallDate);
-
-      console.log(`Found ${calls.length} calls before filtering`);
 
       const validCalls = calls.map((call) => {
         const nextCallLocal = DateTime.fromJSDate(call.nextCallDate).setZone(
@@ -92,8 +80,6 @@ export const CallPlanningService = {
           },
         };
       });
-
-      console.log(`Returning ${validCalls.length} valid calls`);
 
       return {
         total: validCalls.length,

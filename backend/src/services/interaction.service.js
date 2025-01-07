@@ -6,8 +6,6 @@ import { APIError, ERROR_CODES } from "../utils/error.utils.js";
 
 export const createInteraction = async (interactionData, userId) => {
   try {
-    console.log("Creating interaction:", { interactionData, userId });
-
     const [lead] = await db
       .select()
       .from(leads)
@@ -73,8 +71,6 @@ export const createInteraction = async (interactionData, userId) => {
 // Get interactions by lead
 export const getInteractionsByLead = async (leadId, filters = {}) => {
   try {
-    console.log("Fetching interactions for lead:", { leadId, filters });
-
     let query = db
       .select({
         id: interactions.id,
@@ -115,7 +111,6 @@ export const getInteractionsByLead = async (leadId, filters = {}) => {
     query = query.orderBy(desc(interactions.createdAt));
 
     const results = await query;
-    console.log(`Found ${results.length} interactions`);
 
     return results;
   } catch (error) {
@@ -130,8 +125,6 @@ export const getInteractionsByLead = async (leadId, filters = {}) => {
 
 export const getLastInteractionForLead = async (leadId) => {
   try {
-    console.log("Fetching last interaction for lead:", leadId);
-
     const lastInteraction = await db
       .select({
         id: interactions.id,
@@ -156,7 +149,6 @@ export const getLastInteractionForLead = async (leadId) => {
       .orderBy(desc(interactions.createdAt))
       .limit(1);
 
-    console.log("Last interaction found:", lastInteraction[0]);
     return lastInteraction[0] || null;
   } catch (error) {
     console.error("Error fetching last interaction:", error);
@@ -170,8 +162,6 @@ export const getLastInteractionForLead = async (leadId) => {
 
 export const getLeadInteractionStats = async (leadId) => {
   try {
-    console.log("Fetching interaction stats for lead:", leadId);
-
     const stats = await db
       .select({
         totalInteractions: sql`COUNT(*)`,
@@ -229,7 +219,6 @@ export const getLeadInteractionStats = async (leadId) => {
       avgOrderAmount: parseFloat(avgOrderAmount).toFixed(2),
     };
 
-    console.log("Stats found:", formattedStats);
     return formattedStats;
   } catch (error) {
     console.error("Error fetching interaction stats:", error);

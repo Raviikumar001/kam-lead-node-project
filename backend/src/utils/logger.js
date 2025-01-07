@@ -43,7 +43,7 @@ export const logger = {
     )} ${message}${
       data ? chalk.gray(JSON.stringify(sanitizeData(data), null, 2)) : ""
     }`;
-    console.log(logMessage);
+
     writeToFile(format(logMessage));
   },
 
@@ -76,7 +76,7 @@ export const logger = {
     )} ${message}${
       data ? chalk.gray(JSON.stringify(sanitizeData(data), null, 2)) : ""
     }`;
-    console.log(logMessage);
+
     writeToFile(format(logMessage));
   },
 
@@ -97,7 +97,7 @@ export const logger = {
       )} ${message}${
         data ? chalk.gray(JSON.stringify(sanitizeData(data), null, 2)) : ""
       }`;
-      console.log(logMessage);
+
       writeToFile(format(logMessage));
     }
   },
