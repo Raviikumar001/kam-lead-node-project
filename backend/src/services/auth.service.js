@@ -17,7 +17,6 @@ export const registerUser = async (userData) => {
   });
 
   try {
-    // Check if user exists
     const existingUser = await db
       .select()
       .from(users)
@@ -36,20 +35,19 @@ export const registerUser = async (userData) => {
       );
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const now = new Date("2025-01-05 05:06:20");
     console.log("now", now);
-    // Create user with all required fields
+
     const [newUser] = await db
       .insert(users)
       .values({
         email,
         password: hashedPassword,
         name,
-        role: "user", // Default role
-        tokenVersion: 0, // Initial token version
+        role: "user",
+        tokenVersion: 0,
         createdAt: now,
         updatedAt: now,
       })
@@ -62,10 +60,9 @@ export const registerUser = async (userData) => {
         tokenVersion: users.tokenVersion,
       });
 
-    // Generate both access and refresh tokens
     const tokens = generateTokens({
       userId: newUser.id,
-      tokenVersion: newUser.tokenVersion, // Include token version
+      tokenVersion: newUser.tokenVersion,
     });
 
     logger.success("User registered successfully", {
@@ -81,10 +78,9 @@ export const registerUser = async (userData) => {
         role: newUser.role,
         createdAt: newUser.createdAt,
       },
-      ...tokens, // This will spread accessToken, refreshToken, and expiresIn
+      ...tokens,
     };
   } catch (error) {
-    // If it's already an APIError, rethrow it
     if (error instanceof APIError) throw error;
 
     logger.error("Registration failed", {
@@ -92,9 +88,7 @@ export const registerUser = async (userData) => {
       timestamp: "2025-01-05 05:06:20",
     });
 
-    // Check for specific database errors
     if (error.code === "23505") {
-      // PostgreSQL unique violation
       throw new APIError(
         "User with this email already exists",
         409,
@@ -111,61 +105,6 @@ export const registerUser = async (userData) => {
   }
 };
 
-// export const loginUser = async (email, password) => {
-//   logger.info("Login attempt", { email });
-
-//   try {
-//     // Find user
-//     const [user] = await db
-//       .select()
-//       .from(users)
-//       .where(eq(users.email, email))
-//       .limit(1);
-
-//     if (!user) {
-//       logger.warn("Login failed - User not found", { email });
-//       throw new APIError(
-//         "Invalid email or password", // Keep message vague for security
-//         401,
-//         ERROR_CODES.INVALID_CREDENTIALS
-//       );
-//     }
-
-//     // Verify password
-//     const isValidPassword = await bcrypt.compare(password, user.password);
-//     if (!isValidPassword) {
-//       logger.warn("Login failed - Invalid password", { email });
-//       throw new APIError(
-//         "Invalid email or password", // Keep message vague for security
-//         401,
-//         ERROR_CODES.INVALID_CREDENTIALS
-//       );
-//     }
-
-//     const token = generateToken({ userId: user.id });
-
-//     logger.success("User logged in successfully", { userId: user.id });
-
-//     return {
-//       user: {
-//         id: user.id,
-//         email: user.email,
-//         name: user.name,
-//       },
-//       token,
-//     };
-//   } catch (error) {
-//     if (error instanceof APIError) throw error;
-
-//     logger.error("Login failed", error);
-//     throw new APIError(
-//       "Authentication failed",
-//       500,
-//       ERROR_CODES.INTERNAL_SERVER_ERROR,
-//       error.message
-//     );
-//   }
-// };
 export const loginUser = async (email, password) => {
   logger.info("Login attempt", {
     email,
@@ -198,10 +137,9 @@ export const loginUser = async (email, password) => {
       );
     }
 
-    // Generate tokens with tokenVersion
     const { accessToken, refreshToken, expiresIn } = generateTokens({
       userId: user.id,
-      tokenVersion: user.tokenVersion, // Include user's token version
+      tokenVersion: user.tokenVersion,
     });
 
     logger.success("User logged in successfully", {
@@ -231,7 +169,6 @@ export const loginUser = async (email, password) => {
   }
 };
 
-// Add function to revoke all user tokens
 export const revokeUserTokens = async (userId) => {
   try {
     await db

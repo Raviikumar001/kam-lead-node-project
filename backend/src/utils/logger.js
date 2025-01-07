@@ -1,7 +1,8 @@
 // src/utils/logger.js
-import chalk from "chalk"; // First install: npm install chalk
+import chalk from "chalk";
+import { createWriteStream } from "fs";
+import { format } from "util";
 
-// Format date to a readable string with timezone
 const formatDate = () => {
   return new Date().toISOString();
 };
@@ -16,9 +17,7 @@ const sanitizeData = (data) => {
   Object.keys(sanitized).forEach((key) => {
     if (sensitiveFields.includes(key.toLowerCase())) {
       sanitized[key] = "[REDACTED]";
-    }
-    // Recursively sanitize nested objects
-    else if (typeof sanitized[key] === "object") {
+    } else if (typeof sanitized[key] === "object") {
       sanitized[key] = sanitizeData(sanitized[key]);
     }
   });
@@ -26,62 +25,83 @@ const sanitizeData = (data) => {
   return sanitized;
 };
 
+let logFile;
+if (process.env.NODE_ENV === "production") {
+  logFile = createWriteStream("app.log", { flags: "a" });
+}
+
+const writeToFile = (message) => {
+  if (process.env.NODE_ENV === "production" && logFile) {
+    logFile.write(message + "\n");
+  }
+};
+
 export const logger = {
   info: (message, data = null) => {
-    console.log(
-      chalk.blue(`[INFO]`) + chalk.gray(` [${formatDate()}]`) + ` ${message}`,
+    const logMessage = `${chalk.blue(`[INFO]`)}${chalk.gray(
+      ` [${formatDate()}]`
+    )} ${message}${
       data ? chalk.gray(JSON.stringify(sanitizeData(data), null, 2)) : ""
-    );
+    }`;
+    console.log(logMessage);
+    writeToFile(format(logMessage));
   },
 
   error: (message, error = null) => {
-    console.error(
-      chalk.red(`[ERROR]`) +
-        chalk.gray(` [${formatDate()}]`) +
-        chalk.red(` ${message}`)
-    );
+    const logMessage = `${chalk.red(`[ERROR]`)}${chalk.gray(
+      ` [${formatDate()}]`
+    )}${chalk.red(` ${message}`)}`;
+    console.error(logMessage);
 
     if (error) {
-      if (error instanceof Error) {
-        console.error(chalk.red("Error Details:"), {
-          message: error.message,
-          ...(error.code && { code: error.code }),
-          ...(error.stack && { stack: error.stack }),
-        });
-      } else {
-        console.error(chalk.red("Error Details:"), sanitizeData(error));
-      }
+      const errorDetails =
+        error instanceof Error
+          ? {
+              message: error.message,
+              ...(error.code && { code: error.code }),
+              ...(error.stack && { stack: error.stack }),
+            }
+          : sanitizeData(error);
+
+      console.error(chalk.red("Error Details:"), errorDetails);
+      writeToFile(format(logMessage, errorDetails));
+    } else {
+      writeToFile(format(logMessage));
     }
   },
 
   success: (message, data = null) => {
-    console.log(
-      chalk.green(`[SUCCESS]`) +
-        chalk.gray(` [${formatDate()}]`) +
-        ` ${message}`,
+    const logMessage = `${chalk.green(`[SUCCESS]`)}${chalk.gray(
+      ` [${formatDate()}]`
+    )} ${message}${
       data ? chalk.gray(JSON.stringify(sanitizeData(data), null, 2)) : ""
-    );
+    }`;
+    console.log(logMessage);
+    writeToFile(format(logMessage));
   },
 
   warn: (message, data = null) => {
-    console.warn(
-      chalk.yellow(`[WARN]`) + chalk.gray(` [${formatDate()}]`) + ` ${message}`,
+    const logMessage = `${chalk.yellow(`[WARN]`)}${chalk.gray(
+      ` [${formatDate()}]`
+    )} ${message}${
       data ? chalk.gray(JSON.stringify(sanitizeData(data), null, 2)) : ""
-    );
+    }`;
+    console.warn(logMessage);
+    writeToFile(format(logMessage));
   },
 
   debug: (message, data = null) => {
     if (process.env.NODE_ENV === "development") {
-      console.log(
-        chalk.magenta(`[DEBUG]`) +
-          chalk.gray(` [${formatDate()}]`) +
-          ` ${message}`,
+      const logMessage = `${chalk.magenta(`[DEBUG]`)}${chalk.gray(
+        ` [${formatDate()}]`
+      )} ${message}${
         data ? chalk.gray(JSON.stringify(sanitizeData(data), null, 2)) : ""
-      );
+      }`;
+      console.log(logMessage);
+      writeToFile(format(logMessage));
     }
   },
 
-  // HTTP request logger
   request: (req) => {
     const logData = {
       method: req.method,
@@ -92,7 +112,6 @@ export const logger = {
       headers: {
         "user-agent": req.headers["user-agent"],
         "content-type": req.headers["content-type"],
-        // Add other relevant headers
       },
       ip: req.ip,
     };
@@ -100,7 +119,6 @@ export const logger = {
     logger.info(`${req.method} ${req.url}`, sanitizeData(logData));
   },
 
-  // HTTP response logger
   response: (req, res, responseTime) => {
     const logData = {
       method: req.method,
@@ -117,20 +135,15 @@ export const logger = {
     }
   },
 
-  // Transaction logger for database operations
   transaction: (operation, details) => {
     logger.debug(`DB Transaction: ${operation}`, sanitizeData(details));
   },
 };
 
-// Middleware to log requests
 export const requestLoggerMiddleware = (req, res, next) => {
   const start = Date.now();
-
-  // Log request
   logger.request(req);
 
-  // Log response
   res.on("finish", () => {
     const duration = Date.now() - start;
     logger.response(req, res, duration);
@@ -138,25 +151,3 @@ export const requestLoggerMiddleware = (req, res, next) => {
 
   next();
 };
-
-// If you want to log to a file as well, you can add this:
-// Note: For production, consider using a proper logging service
-if (process.env.NODE_ENV === "production") {
-  const fs = require("fs");
-  const util = require("util");
-  const logFile = fs.createWriteStream("app.log", { flags: "a" });
-
-  // Override console.log and console.error
-  const originalConsoleLog = console.log;
-  const originalConsoleError = console.error;
-
-  console.log = function () {
-    logFile.write(util.format.apply(null, arguments) + "\n");
-    originalConsoleLog.apply(console, arguments);
-  };
-
-  console.error = function () {
-    logFile.write(util.format.apply(null, arguments) + "\n");
-    originalConsoleError.apply(console, arguments);
-  };
-}

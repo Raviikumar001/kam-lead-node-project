@@ -10,7 +10,6 @@ export const PerformanceService = {
     try {
       console.log("Fetching performance for lead:", leadId);
 
-      // First check if lead exists
       const [lead] = await db.select().from(leads).where(eq(leads.id, leadId));
 
       if (!lead) {
@@ -21,13 +20,11 @@ export const PerformanceService = {
         );
       }
 
-      // Get performance metrics
       const [performance] = await db
         .select()
         .from(leadPerformance)
         .where(eq(leadPerformance.leadId, leadId));
 
-      // Get recent order history
       const thirtyDaysAgo = DateTime.fromJSDate(context.currentTime)
         .minus({ days: 30 })
         .toJSDate();
@@ -105,7 +102,6 @@ export const PerformanceService = {
       });
 
       return await db.transaction(async (trx) => {
-        // 1. Verify lead exists
         const [lead] = await trx
           .select()
           .from(leads)
@@ -119,7 +115,6 @@ export const PerformanceService = {
           );
         }
 
-        // 2. Insert into order_history
         const [newOrder] = await trx
           .insert(orderHistory)
           .values({
@@ -133,7 +128,6 @@ export const PerformanceService = {
 
         console.log("Order inserted:", newOrder);
 
-        // 3. Get recent orders
         const thirtyDaysAgo = DateTime.fromJSDate(context.currentTime)
           .minus({ days: 30 })
           .toJSDate();
@@ -151,7 +145,6 @@ export const PerformanceService = {
 
         console.log("Found orders:", orders);
 
-        // 4. Calculate metrics
         const metrics = {
           monthlyOrderCount: orders.length,
           lastOrderDate: orders[0].orderDate,
@@ -167,7 +160,6 @@ export const PerformanceService = {
 
         console.log("Calculated metrics:", metrics);
 
-        // 5. Update or insert lead_performance
         const existingMetrics = await trx
           .select()
           .from(leadPerformance)
@@ -176,7 +168,6 @@ export const PerformanceService = {
         let updatedMetrics;
 
         if (existingMetrics.length > 0) {
-          // Update existing metrics
           [updatedMetrics] = await trx
             .update(leadPerformance)
             .set({
@@ -189,7 +180,7 @@ export const PerformanceService = {
               lastStatusChange: metrics.lastStatusChange,
               orderTrend: metrics.orderTrend,
               updatedAt: context.currentTime,
-              updatedBy: "ravi-hisoka", // Using current user
+              updatedBy: "ravi-hisoka",
             })
             .where(eq(leadPerformance.leadId, orderData.leadId))
             .returning();
@@ -208,9 +199,9 @@ export const PerformanceService = {
               lastStatusChange: metrics.lastStatusChange,
               orderTrend: metrics.orderTrend,
               createdAt: context.currentTime,
-              createdBy: "ravi-hisoka", // Using current user
+              createdBy: "ravi-hisoka",
               updatedAt: context.currentTime,
-              updatedBy: "ravi-hisoka", // Using current user
+              updatedBy: "ravi-hisoka",
             })
             .returning();
         }
@@ -249,13 +240,11 @@ export const PerformanceService = {
     try {
       console.log("Processing getLeadsByPerformance:", { filters, context });
 
-      // Build the where clause
       let whereClause = undefined;
       if (filters.status) {
         whereClause = eq(leadPerformance.performanceStatus, filters.status);
       }
 
-      // Determine order by column
       let orderByColumn;
       switch (filters.orderBy) {
         case "monthlyOrderCount":
@@ -271,7 +260,6 @@ export const PerformanceService = {
           orderByColumn = leadPerformance.monthlyOrderCount;
       }
 
-      // Get performance data with lead information
       const performanceData = await db
         .select({
           leadId: leadPerformance.leadId,

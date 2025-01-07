@@ -2,7 +2,6 @@
 
 import { logger } from "./logger.js";
 
-// Custom error class for API errors
 export class APIError extends Error {
   constructor(
     message,
@@ -15,16 +14,13 @@ export class APIError extends Error {
     this.code = code;
     this.errors = errors;
 
-    // Ensure proper stack trace
     Error.captureStackTrace(this, this.constructor);
   }
 }
 
-// Global error handling middleware
 export const errorHandler = (err, req, res, next) => {
   logger.error("Error occurred:", err);
 
-  // If it's our custom API error, use its properties
   if (err instanceof APIError) {
     const errorResponse = {
       status: "error",
@@ -38,9 +34,7 @@ export const errorHandler = (err, req, res, next) => {
     return res.status(err.status).json(errorResponse);
   }
 
-  // Handle Drizzle ORM errors
   if (err.code && err.code.startsWith("23")) {
-    // PostgreSQL error codes
     const dbError = {
       status: "error",
       code: "DATABASE_ERROR",
@@ -53,7 +47,6 @@ export const errorHandler = (err, req, res, next) => {
     return res.status(500).json(dbError);
   }
 
-  // Default error response
   const defaultError = {
     status: "error",
     code: "INTERNAL_SERVER_ERROR",
@@ -69,7 +62,6 @@ export const errorHandler = (err, req, res, next) => {
   res.status(500).json(defaultError);
 };
 
-// 404 Not Found handler
 export const notFoundHandler = (req, res, next) => {
   logger.warn(`Route not found: ${req.method} ${req.url}`);
   const err = new APIError(
@@ -80,14 +72,12 @@ export const notFoundHandler = (req, res, next) => {
   next(err);
 };
 
-// Async handler to remove try-catch boilerplate
 export const asyncHandler = (fn) => {
   return (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
 
-// Request validator middleware
 export const validateRequest = (schema) => (req, res, next) => {
   try {
     req.validated = schema.parse(req.body);
@@ -108,7 +98,6 @@ export const validateRequest = (schema) => (req, res, next) => {
   }
 };
 
-// Example usage of error codes
 export const ERROR_CODES = {
   VALIDATION_ERROR: "VALIDATION_ERROR",
   NOT_FOUND: "NOT_FOUND",
@@ -117,13 +106,13 @@ export const ERROR_CODES = {
   CONFLICT: "CONFLICT",
   INTERNAL_SERVER_ERROR: "INTERNAL_SERVER_ERROR",
   DATABASE_ERROR: "DATABASE_ERROR",
-  // Auth specific errors
+
   INVALID_CREDENTIALS: "INVALID_CREDENTIALS",
   TOKEN_EXPIRED: "TOKEN_EXPIRED",
   INVALID_TOKEN: "INVALID_TOKEN",
-  // Resource specific errors
+
   RESOURCE_NOT_FOUND: "RESOURCE_NOT_FOUND",
   RESOURCE_ALREADY_EXISTS: "RESOURCE_ALREADY_EXISTS",
-  // Rate limiting
+
   RATE_LIMIT_EXCEEDED: "RATE_LIMIT_EXCEEDED",
 };

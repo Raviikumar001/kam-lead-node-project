@@ -3,8 +3,8 @@ import jwt from "jsonwebtoken";
 import { APIError, ERROR_CODES } from "./error.utils.js";
 import { logger } from "./logger.js";
 
-const ACCESS_TOKEN_EXPIRES_IN = "24h"; // 24 hours access token
-const REFRESH_TOKEN_EXPIRES_IN = "7d"; // 7 days refresh token
+const ACCESS_TOKEN_EXPIRES_IN = "24h";
+const REFRESH_TOKEN_EXPIRES_IN = "7d";
 
 export const generateTokens = (payload) => {
   try {
@@ -17,18 +17,15 @@ export const generateTokens = (payload) => {
       iat: currentTimestamp,
     };
 
-    // Generate access token
     const accessToken = jwt.sign(
       {
         ...basePayload,
         type: "access",
-        // exp: currentTimestamp + 24 * 60 * 60, // 24 hours
       },
       process.env.JWT_SECRET,
       { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
     );
 
-    // Generate refresh token with tokenVersion
     const refreshToken = jwt.sign(
       {
         ...basePayload,
@@ -88,7 +85,6 @@ export const verifyRefreshToken = async (token, userTokenVersion) => {
       throw new APIError("Invalid token type", 401, ERROR_CODES.INVALID_TOKEN);
     }
 
-    // Verify token version matches user's current token version
     if (decoded.tokenVersion !== userTokenVersion) {
       throw new APIError(
         "Token has been revoked",
@@ -114,7 +110,6 @@ export const refreshTokens = async (refreshToken, userTokenVersion) => {
   try {
     const decoded = await verifyRefreshToken(refreshToken, userTokenVersion);
 
-    // Generate new tokens with the same token version
     return generateTokens({
       userId: decoded.userId,
       tokenVersion: decoded.tokenVersion,

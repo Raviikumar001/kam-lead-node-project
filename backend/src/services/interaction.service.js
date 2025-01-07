@@ -4,12 +4,10 @@ import { interactions, leads, contacts } from "../db/schema/index.js";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { APIError, ERROR_CODES } from "../utils/error.utils.js";
 
-// Create new interaction (call or order)
 export const createInteraction = async (interactionData, userId) => {
   try {
     console.log("Creating interaction:", { interactionData, userId });
 
-    // 1. First verify the lead exists and belongs to the user
     const [lead] = await db
       .select()
       .from(leads)
@@ -25,7 +23,6 @@ export const createInteraction = async (interactionData, userId) => {
       );
     }
 
-    // 2. Verify contact exists and belongs to the lead
     const [contact] = await db
       .select()
       .from(contacts)
@@ -44,7 +41,6 @@ export const createInteraction = async (interactionData, userId) => {
       );
     }
 
-    // 3. Create the interaction
     const newInteraction = await db
       .insert(interactions)
       .values({
@@ -53,12 +49,12 @@ export const createInteraction = async (interactionData, userId) => {
         userId: userId,
         type: interactionData.type,
         status: interactionData.status,
-        details: interactionData.notes, // Map notes to details
+        details: interactionData.notes,
         orderAmount: interactionData.orderAmount || 0,
         orderItems: interactionData.orderItems || {},
-        createdAt: new Date(), // Using provided time
+        createdAt: new Date(),
         updatedAt: new Date(),
-        createdBy: userId, // Using the provided user login as UUID
+        createdBy: userId,
       })
       .returning();
 
@@ -79,7 +75,6 @@ export const getInteractionsByLead = async (leadId, filters = {}) => {
   try {
     console.log("Fetching interactions for lead:", { leadId, filters });
 
-    // Build the query with explicit field selection
     let query = db
       .select({
         id: interactions.id,
@@ -100,7 +95,6 @@ export const getInteractionsByLead = async (leadId, filters = {}) => {
       .leftJoin(contacts, eq(interactions.contactId, contacts.id))
       .where(eq(interactions.leadId, leadId));
 
-    // Apply filters if provided
     if (filters.type) {
       query = query.where(eq(interactions.type, filters.type));
     }
@@ -109,7 +103,6 @@ export const getInteractionsByLead = async (leadId, filters = {}) => {
       query = query.where(eq(interactions.status, filters.status));
     }
 
-    // Add date range filter if provided
     if (filters.startDate && filters.endDate) {
       query = query.where(
         and(
@@ -119,7 +112,6 @@ export const getInteractionsByLead = async (leadId, filters = {}) => {
       );
     }
 
-    // Order by most recent first
     query = query.orderBy(desc(interactions.createdAt));
 
     const results = await query;
@@ -213,7 +205,6 @@ export const getLeadInteractionStats = async (leadId) => {
 
     const result = stats[0] || defaultStats;
 
-    // Destructure the counts and other fields separately
     const {
       completedCount,
       noAnswerCount,
@@ -224,7 +215,6 @@ export const getLeadInteractionStats = async (leadId) => {
       ...otherStats
     } = result;
 
-    // Create the formatted stats without the individual count fields
     const formattedStats = {
       ...otherStats,
       byStatus: {

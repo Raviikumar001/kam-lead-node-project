@@ -13,12 +13,11 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(requestLoggerMiddleware); // Log all requests
+app.use(requestLoggerMiddleware);
 
 // Routes
 app.use("/api", routes);
 
-// Health check route
 app.get("/health", (req, res) => {
   res.json({
     status: "OK",
@@ -26,10 +25,8 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Handle 404 errors
 app.use(notFoundHandler);
 
-// Global error handler - should be last
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
@@ -38,16 +35,6 @@ app.listen(PORT, () => {
   logger.info(`Server is running on port ${PORT}`);
 });
 
-// Handle unhandled promise rejections
-process.on("unhandledRejection", (err) => {
-  logger.error("Unhandled Promise Rejection:", err);
-  // In production, you might want to crash the process
-  // process.exit(1);
-});
-
-// Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
   logger.error("Uncaught Exception:", err);
-  // In production, you should crash the process after cleanup
-  // process.exit(1);
 });

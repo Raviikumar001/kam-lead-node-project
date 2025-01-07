@@ -5,7 +5,6 @@ import { eq, and, desc } from "drizzle-orm";
 import { ERROR_CODES, APIError } from "../utils/error.utils.js";
 import { sql } from "drizzle-orm";
 
-// Helper Functions
 const validateContactAccess = async (contactId, userId) => {
   const contact = await db
     .select()
@@ -32,10 +31,8 @@ const unsetPrimaryContact = async (leadId) => {
     .where(eq(contacts.leadId, leadId));
 };
 
-// Service Functions
 export const createContact = async (contactData, leadId, userId) => {
   try {
-    // Verify the lead exists and belongs to the user
     console.log(contactData, leadId, userId);
     const lead = await db
       .select()
@@ -50,7 +47,6 @@ export const createContact = async (contactData, leadId, userId) => {
       );
     }
 
-    // If this contact is to be primary, unset any existing primary contact
     if (contactData.isPrimary) {
       await unsetPrimaryContact(leadId);
     }
@@ -98,7 +94,6 @@ export const updateContact = async (contactId, updateData, userId) => {
 
 export const getContactsByLead = async (leadId, userId) => {
   try {
-    // Verify lead belongs to user
     const lead = await db
       .select()
       .from(leads)
@@ -139,11 +134,9 @@ export const deleteContact = async (contactId, userId) => {
   try {
     console.log("Deleting contact:", { contactId, userId });
 
-    // 1. Validate contact access
     const contact = await validateContactAccess(contactId, userId);
     console.log("Validated contact:", contact);
 
-    // 2. Count total contacts for this lead using the correct syntax
     const [countResult] = await db
       .select({ count: sql`cast(count(*) as integer)` })
       .from(contacts)
@@ -151,7 +144,6 @@ export const deleteContact = async (contactId, userId) => {
 
     console.log("Contact count:", countResult);
 
-    // 3. Check if this is the only contact
     if (countResult.count === 1) {
       throw new APIError(
         "Cannot delete the only contact for a lead",
@@ -160,7 +152,6 @@ export const deleteContact = async (contactId, userId) => {
       );
     }
 
-    // 4. Check primary contact condition
     if (contact.isPrimary && countResult.count > 1) {
       throw new APIError(
         "Cannot delete primary contact. Please set another contact as primary first.",
@@ -169,7 +160,6 @@ export const deleteContact = async (contactId, userId) => {
       );
     }
 
-    // 5. Delete the contact
     const [deletedContact] = await db
       .delete(contacts)
       .where(eq(contacts.id, contactId))

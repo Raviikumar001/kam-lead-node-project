@@ -2,7 +2,7 @@
 import { db } from "../db/index.js";
 import { leads } from "../db/schema/index.js";
 import { eq, desc, sql } from "drizzle-orm";
-import { APIError } from "../utils/error.utils.js"; // Using existing error utilities
+import { APIError } from "../utils/error.utils.js";
 
 export class LeadService {
   async createLead(leadData, userId) {
@@ -79,7 +79,6 @@ export class LeadService {
     return lead;
   }
 
-  // Helper method for finding a lead by ID and user
   async findLeadByIdAndUser(id, userId) {
     try {
       const lead = await db
