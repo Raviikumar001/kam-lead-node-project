@@ -6,26 +6,10 @@ import { APIError } from "../utils/error.utils.js";
 export const PerformanceController = {
   async getLeadPerformance(req, res, next) {
     try {
-      const { leadId } = req.params;
-
-      if (!leadId) {
-        throw new APIError({
-          message: "Lead ID is required",
-          statusCode: 400,
-        });
-      }
-
-      await performanceValidation.leadId
-        .parseAsync({ leadId: Number(leadId) })
-        .catch(() => {
-          throw new APIError({
-            message: "Invalid Lead ID format",
-            statusCode: 400,
-          });
-        });
+      const leadId = Number(req.params.leadId);
 
       const performance = await PerformanceService.getLeadPerformance(
-        Number(leadId),
+        leadId,
         req.context
       );
 
@@ -73,28 +57,38 @@ export const PerformanceController = {
 
   async updateOrderHistory(req, res, next) {
     try {
+      console.log("Processing order update request:", {
+        body: req.body,
+        currentTime: req.context.currentTime,
+      });
+
       if (!req.body) {
-        throw new APIError({
-          message: "Request body is required",
-          statusCode: 400,
-        });
+        throw new APIError(
+          "Request body is required",
+          400,
+          ERROR_CODES.VALIDATION_ERROR
+        );
       }
 
-      const orderData = await performanceValidation.updateOrderHistory
-        .parseAsync(req.body)
-        .catch((validationError) => {
-          throw new APIError({
-            message: "Invalid order data",
-            statusCode: 400,
-            cause: validationError,
-          });
+      // Parse and validate order data
+      const orderData =
+        await performanceValidation.updateOrderHistory.parseAsync({
+          ...req.body,
+          orderDate: new Date(req.body.orderDate),
         });
 
-      if (orderData.orderDate > req.context.currentTime) {
-        throw new APIError({
-          message: "Order date cannot be in the future",
-          statusCode: 400,
-        });
+      console.log("Validated order data:", orderData);
+
+      // Compare dates properly using timestamps
+      const orderTimestamp = new Date(orderData.orderDate).getTime();
+      const currentTimestamp = new Date(req.context.currentTime).getTime();
+
+      if (orderTimestamp > currentTimestamp) {
+        throw new APIError(
+          "Order date cannot be in the future",
+          400,
+          ERROR_CODES.VALIDATION_ERROR
+        );
       }
 
       const performance = await PerformanceService.updateOrderHistory(
@@ -107,6 +101,17 @@ export const PerformanceController = {
         data: performance,
       });
     } catch (error) {
+      console.error("Error in updateOrderHistory:", error);
+      if (error.name === "ZodError") {
+        return next(
+          new APIError(
+            "Invalid order data",
+            400,
+            ERROR_CODES.VALIDATION_ERROR,
+            error.errors
+          )
+        );
+      }
       next(error);
     }
   },

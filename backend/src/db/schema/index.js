@@ -165,17 +165,12 @@ export const leadPerformance = pgTable("lead_performance", {
 export const orderHistory = pgTable("order_history", {
   id: serial("id").primaryKey(),
   leadId: integer("lead_id")
-    .references(() => leads.id)
-    .notNull(),
-
-  orderValue: numeric("order_value").notNull(),
-  orderDate: timestamp("order_date").notNull(),
-
-  // System fields - using context time
-  createdAt: timestamp("created_at").notNull(),
-  createdBy: varchar("created_by", { length: 255 }).notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
-  updatedBy: varchar("updated_by", { length: 255 }).notNull(),
+    .notNull()
+    .references(() => leads.id),
+  orderValue: decimal("order_value", { precision: 10, scale: 2 }).notNull(),
+  orderDate: timestamp("order_date", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 // Then define relations

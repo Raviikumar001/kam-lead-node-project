@@ -2,85 +2,327 @@
 import { db } from "../db/index.js";
 import { leads, leadPerformance, orderHistory } from "../db/schema/index.js";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
-import { APIError } from "../utils/error.utils.js";
+import { APIError, ERROR_CODES } from "../utils/error.utils.js";
+import { DateTime } from "luxon";
 
 export const PerformanceService = {
   async getLeadPerformance(leadId, context) {
     try {
-      const performance = await db.query.leadPerformance.findFirst({
-        where: eq(leadPerformance.leadId, leadId),
-        with: {
-          lead: true,
-        },
-      });
+      console.log("Fetching performance for lead:", leadId);
 
-      if (!performance) {
-        throw new APIError({
-          message: `No performance data found for lead ${leadId}`,
-          statusCode: 404,
-        });
-      }
+      // First check if lead exists
+      const [lead] = await db.select().from(leads).where(eq(leads.id, leadId));
 
-      return performance;
-    } catch (error) {
-      if (error instanceof APIError) throw error;
-      throw new APIError({
-        message: "Failed to fetch lead performance",
-        statusCode: 500,
-        cause: error,
-      });
-    }
-  },
-
-  async getLeadsByPerformance(params, context) {
-    try {
-      let query = db
-        .select()
-        .from(leadPerformance)
-        .innerJoin(leads, eq(leads.id, leadPerformance.leadId));
-
-      if (params.status) {
-        query = query.where(
-          eq(leadPerformance.performanceStatus, params.status)
+      if (!lead) {
+        throw new APIError(
+          `Lead not found with ID: ${leadId}`,
+          404,
+          ERROR_CODES.RESOURCE_NOT_FOUND
         );
       }
 
-      if (params.orderBy) {
-        const orderFunc = params.sortOrder === "asc" ? asc : desc;
-        query = query.orderBy(orderFunc(leadPerformance[params.orderBy]));
+      // Get performance metrics
+      const [performance] = await db
+        .select()
+        .from(leadPerformance)
+        .where(eq(leadPerformance.leadId, leadId));
+
+      // Get recent order history
+      const thirtyDaysAgo = DateTime.fromJSDate(context.currentTime)
+        .minus({ days: 30 })
+        .toJSDate();
+
+      const orders = await db
+        .select()
+        .from(orderHistory)
+        .where(
+          and(
+            eq(orderHistory.leadId, leadId),
+            gte(orderHistory.orderDate, thirtyDaysAgo)
+          )
+        )
+        .orderBy(desc(orderHistory.orderDate));
+
+      if (!performance) {
+        return {
+          lead: {
+            id: lead.id,
+            name: lead.restaurantName,
+            status: lead.status,
+          },
+          performance: {
+            monthlyOrderCount: 0,
+            lastOrderDate: null,
+            averageOrderValue: 0,
+            orderFrequency: "NEW",
+            preferredOrderDays: [],
+            performanceStatus: "NEW",
+            lastStatusChange: null,
+            orderTrend: "STABLE",
+          },
+          recentOrders: [],
+        };
       }
 
-      return await query;
+      return {
+        lead: {
+          id: lead.id,
+          name: lead.restaurantName,
+          status: lead.status,
+        },
+        performance: {
+          monthlyOrderCount: performance.monthlyOrderCount,
+          lastOrderDate: performance.lastOrderDate,
+          averageOrderValue: Number(performance.averageOrderValue),
+          orderFrequency: performance.orderFrequency,
+          preferredOrderDays: performance.preferredOrderDays,
+          performanceStatus: performance.performanceStatus,
+          lastStatusChange: performance.lastStatusChange,
+          orderTrend: performance.orderTrend,
+        },
+        recentOrders: orders.map((order) => ({
+          id: order.id,
+          orderDate: order.orderDate,
+          orderValue: Number(order.orderValue),
+        })),
+      };
     } catch (error) {
-      throw new APIError({
-        message: "Failed to fetch leads by performance",
-        statusCode: 500,
-        cause: error,
-      });
+      console.error("Error in getLeadPerformance:", error);
+      if (error instanceof APIError) throw error;
+      throw new APIError(
+        error.message || "Failed to fetch lead performance",
+        error.status || 500,
+        error.code || ERROR_CODES.DATABASE_ERROR
+      );
     }
   },
 
-  async updateOrderHistory(data, context) {
+  async updateOrderHistory(orderData, context) {
     try {
+      console.log("Starting updateOrderHistory service:", {
+        orderData,
+        context,
+      });
+
       return await db.transaction(async (trx) => {
-        await trx.insert(orderHistory).values({
-          ...data,
-          createdAt: context.currentTime,
-          createdBy: context.currentUser,
-          updatedAt: context.currentTime,
-          updatedBy: context.currentUser,
-        });
+        // 1. Verify lead exists
+        const [lead] = await trx
+          .select()
+          .from(leads)
+          .where(eq(leads.id, orderData.leadId));
 
-        await this.updatePerformanceMetrics(data.leadId, trx, context);
+        if (!lead) {
+          throw new APIError(
+            `Lead not found with ID: ${orderData.leadId}`,
+            404,
+            ERROR_CODES.RESOURCE_NOT_FOUND
+          );
+        }
 
-        return await this.getLeadPerformance(data.leadId, context);
+        // 2. Insert into order_history
+        const [newOrder] = await trx
+          .insert(orderHistory)
+          .values({
+            leadId: orderData.leadId,
+            orderValue: orderData.orderValue,
+            orderDate: orderData.orderDate,
+            createdAt: context.currentTime,
+            updatedAt: context.currentTime,
+          })
+          .returning();
+
+        console.log("Order inserted:", newOrder);
+
+        // 3. Get recent orders
+        const thirtyDaysAgo = DateTime.fromJSDate(context.currentTime)
+          .minus({ days: 30 })
+          .toJSDate();
+
+        const orders = await trx
+          .select()
+          .from(orderHistory)
+          .where(
+            and(
+              eq(orderHistory.leadId, orderData.leadId),
+              gte(orderHistory.orderDate, thirtyDaysAgo)
+            )
+          )
+          .orderBy(desc(orderHistory.orderDate));
+
+        console.log("Found orders:", orders);
+
+        // 4. Calculate metrics
+        const metrics = {
+          monthlyOrderCount: orders.length,
+          lastOrderDate: orders[0].orderDate,
+          averageOrderValue:
+            orders.reduce((sum, order) => sum + Number(order.orderValue), 0) /
+            orders.length,
+          orderFrequency: orders.length >= 2 ? "WEEKLY" : "MONTHLY",
+          preferredOrderDays: [],
+          performanceStatus: orders.length >= 2 ? "ACTIVE" : "STABLE",
+          lastStatusChange: context.currentTime,
+          orderTrend: "STABLE",
+        };
+
+        console.log("Calculated metrics:", metrics);
+
+        // 5. Update or insert lead_performance
+        const existingMetrics = await trx
+          .select()
+          .from(leadPerformance)
+          .where(eq(leadPerformance.leadId, orderData.leadId));
+
+        let updatedMetrics;
+
+        if (existingMetrics.length > 0) {
+          // Update existing metrics
+          [updatedMetrics] = await trx
+            .update(leadPerformance)
+            .set({
+              monthlyOrderCount: metrics.monthlyOrderCount,
+              lastOrderDate: metrics.lastOrderDate,
+              averageOrderValue: metrics.averageOrderValue,
+              orderFrequency: metrics.orderFrequency,
+              preferredOrderDays: metrics.preferredOrderDays,
+              performanceStatus: metrics.performanceStatus,
+              lastStatusChange: metrics.lastStatusChange,
+              orderTrend: metrics.orderTrend,
+              updatedAt: context.currentTime,
+              updatedBy: "ravi-hisoka", // Using current user
+            })
+            .where(eq(leadPerformance.leadId, orderData.leadId))
+            .returning();
+        } else {
+          // Insert new metrics
+          [updatedMetrics] = await trx
+            .insert(leadPerformance)
+            .values({
+              leadId: orderData.leadId,
+              monthlyOrderCount: metrics.monthlyOrderCount,
+              lastOrderDate: metrics.lastOrderDate,
+              averageOrderValue: metrics.averageOrderValue,
+              orderFrequency: metrics.orderFrequency,
+              preferredOrderDays: metrics.preferredOrderDays,
+              performanceStatus: metrics.performanceStatus,
+              lastStatusChange: metrics.lastStatusChange,
+              orderTrend: metrics.orderTrend,
+              createdAt: context.currentTime,
+              createdBy: "ravi-hisoka", // Using current user
+              updatedAt: context.currentTime,
+              updatedBy: "ravi-hisoka", // Using current user
+            })
+            .returning();
+        }
+
+        console.log("Updated metrics:", updatedMetrics);
+
+        return {
+          leadId: orderData.leadId,
+          metrics: {
+            monthlyOrderCount: metrics.monthlyOrderCount,
+            lastOrderDate: metrics.lastOrderDate,
+            averageOrderValue: Number(metrics.averageOrderValue.toFixed(2)),
+            orderFrequency: metrics.orderFrequency,
+            preferredOrderDays: metrics.preferredOrderDays,
+            performanceStatus: metrics.performanceStatus,
+            lastStatusChange: metrics.lastStatusChange,
+            orderTrend: metrics.orderTrend,
+          },
+          orderHistory: orders.map((order) => ({
+            orderDate: order.orderDate,
+            orderValue: Number(order.orderValue),
+          })),
+        };
       });
     } catch (error) {
-      throw new APIError({
-        message: "Failed to update order history",
-        statusCode: 500,
-        cause: error,
-      });
+      console.error("Service error:", error);
+      throw new APIError(
+        error.message || "Failed to update order history",
+        error.status || 500,
+        error.code || ERROR_CODES.DATABASE_ERROR
+      );
+    }
+  },
+
+  async getLeadsByPerformance(filters, context) {
+    try {
+      console.log("Processing getLeadsByPerformance:", { filters, context });
+
+      // Build the where clause
+      let whereClause = undefined;
+      if (filters.status) {
+        whereClause = eq(leadPerformance.performanceStatus, filters.status);
+      }
+
+      // Determine order by column
+      let orderByColumn;
+      switch (filters.orderBy) {
+        case "monthlyOrderCount":
+          orderByColumn = leadPerformance.monthlyOrderCount;
+          break;
+        case "lastOrderDate":
+          orderByColumn = leadPerformance.lastOrderDate;
+          break;
+        case "averageOrderValue":
+          orderByColumn = leadPerformance.averageOrderValue;
+          break;
+        default:
+          orderByColumn = leadPerformance.monthlyOrderCount;
+      }
+
+      // Get performance data with lead information
+      const performanceData = await db
+        .select({
+          leadId: leadPerformance.leadId,
+          restaurantName: leads.restaurantName,
+          status: leads.status,
+          monthlyOrderCount: leadPerformance.monthlyOrderCount,
+          lastOrderDate: leadPerformance.lastOrderDate,
+          averageOrderValue: leadPerformance.averageOrderValue,
+          orderFrequency: leadPerformance.orderFrequency,
+          performanceStatus: leadPerformance.performanceStatus,
+          orderTrend: leadPerformance.orderTrend,
+        })
+        .from(leadPerformance)
+        .innerJoin(leads, eq(leads.id, leadPerformance.leadId))
+        .where(whereClause)
+        .orderBy(
+          filters.sortOrder === "desc"
+            ? desc(orderByColumn)
+            : asc(orderByColumn)
+        );
+
+      console.log(`Found ${performanceData.length} leads matching criteria`);
+
+      return {
+        total: performanceData.length,
+        filters: {
+          status: filters.status || "ALL",
+          orderBy: filters.orderBy,
+          sortOrder: filters.sortOrder,
+        },
+        leads: performanceData.map((lead) => ({
+          id: lead.leadId,
+          restaurantName: lead.restaurantName,
+          status: lead.status,
+          performance: {
+            monthlyOrderCount: lead.monthlyOrderCount,
+            lastOrderDate: lead.lastOrderDate,
+            averageOrderValue: Number(lead.averageOrderValue),
+            orderFrequency: lead.orderFrequency,
+            performanceStatus: lead.performanceStatus,
+            orderTrend: lead.orderTrend,
+          },
+        })),
+      };
+    } catch (error) {
+      console.error("Error in getLeadsByPerformance:", error);
+      throw new APIError(
+        error.message || "Failed to fetch leads by performance",
+        error.status || 500,
+        error.code || ERROR_CODES.DATABASE_ERROR
+      );
     }
   },
 
