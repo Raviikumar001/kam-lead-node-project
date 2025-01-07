@@ -1,4 +1,4 @@
-# Udaan Backend API - Feature Implementation Details
+# Backend API - Feature Implementation Details
 
 ## 1. Lead Management
 
@@ -25,10 +25,10 @@ const restaurantLeads = pgTable("restaurant_leads", {
 
 ## Features Implemented:
 
-CRUD operations for restaurant leads.
-Status tracking (new → contacted → qualified → converted/lost).
-Search and filter functionality.
-Location-based lead sorting.
+- CRUD operations for restaurant leads.
+- Status tracking (new → contacted → qualified → converted/lost).
+- Search and filter functionality.
+- Location-based lead sorting.
 
 ## 2 Contact Management
 
