@@ -1,5 +1,13 @@
 # kam-lead-node-project
 
+#### backend implentation README
+
+[Here](./backend/README.md)
+
+#### API Documentation README
+
+[Here](./backend/API-Documentation.md)
+
 # Backend API
 
 ## Overview
@@ -33,7 +41,7 @@ Clone the repository to your local machine using the following command:
 
 ```bash
 git clone https://github.com/Raviikumar001/kam-lead-node-project.git
-cd kam-lead-node-project
+cd kam-lead-node-project/backend
 ```
 
 ## 2. Install Dependencies
