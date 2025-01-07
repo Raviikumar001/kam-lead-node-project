@@ -1,5 +1,12 @@
 # Backend API - Feature Implementation Details
 
+## Seed data upload
+
+```
+node src/db/seed.js
+
+```
+
 ## 1. Lead Management
 
 ### Implementation:
