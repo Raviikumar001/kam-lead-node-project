@@ -13,10 +13,6 @@ async function seed() {
   const currentUser = "ravi-hisoka";
 
   try {
-    console.log("Starting seed process...");
-
-    // 1. Insert Users
-    console.log("Inserting users...");
     const insertedUsers = await db
       .insert(usersTable)
       .values([
@@ -44,14 +40,11 @@ async function seed() {
       });
 
     const [user1, user2] = insertedUsers;
-    console.log("Inserted users:", insertedUsers);
 
     if (!user1?.id || !user2?.id) {
       throw new Error("Failed to get user IDs after insertion");
     }
 
-    // 2. Insert Leads
-    console.log("Inserting leads...");
     const insertedLeads = await db
       .insert(leadsTable)
       .values([
@@ -130,10 +123,6 @@ async function seed() {
         timezone: leadsTable.timezone,
       });
 
-    console.log("Inserted leads:", insertedLeads);
-
-    // 3. Insert Contacts
-    console.log("Inserting contacts...");
     const insertedContacts = await db
       .insert(contactsTable)
       .values([
@@ -184,10 +173,6 @@ async function seed() {
         leadId: contactsTable.leadId,
       });
 
-    console.log("Inserted contacts:", insertedContacts);
-
-    // 4. Insert Interactions
-    console.log("Inserting interactions...");
     const insertedInteractions = await db
       .insert(interactionsTable)
       .values([
@@ -237,10 +222,6 @@ async function seed() {
         type: interactionsTable.type,
       });
 
-    console.log("Inserted interactions:", insertedInteractions);
-
-    // 5. Insert Lead Performance
-    console.log("Inserting lead performance...");
     const insertedPerformance = await db
       .insert(leadPerformanceTable)
       .values([
@@ -296,10 +277,6 @@ async function seed() {
         performanceStatus: leadPerformanceTable.performanceStatus,
       });
 
-    console.log("Inserted performance:", insertedPerformance);
-
-    // 6. Insert Order History
-    console.log("Inserting order history...");
     const insertedOrders = await db
       .insert(orderHistoryTable)
       .values([
@@ -337,11 +314,7 @@ async function seed() {
         leadId: orderHistoryTable.leadId,
         orderValue: orderHistoryTable.orderValue,
       });
-
-    console.log("Inserted orders:", insertedOrders);
-    console.log("Seed completed successfully!");
   } catch (error) {
-    console.error("Detailed error:", error);
     throw error;
   }
 }

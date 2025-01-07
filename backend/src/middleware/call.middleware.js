@@ -23,12 +23,9 @@ const handleValidationError = (error, req, res) => {
 export const validateRequest = {
   todaysCalls: async (req, res, next) => {
     try {
-      // Validate timezone
       await CallPlanningSchema.todaysCalls.parseAsync(req.query);
 
-      // Set request context
       req.context = createContext(req);
-      console.log("Today's calls context:", req.context);
 
       next();
     } catch (error) {
@@ -44,15 +41,9 @@ export const validateRequest = {
         timezone: req.body.timezone || req.query.timezone,
       };
 
-      // Validate request data
       await CallPlanningSchema.updateCallSchedule.parseAsync(data);
 
-      // Set request context
       req.context = createContext(req);
-      console.log("Update call schedule context:", {
-        ...req.context,
-        leadId: data.leadId,
-      });
 
       next();
     } catch (error) {
@@ -64,7 +55,6 @@ export const validateRequest = {
     try {
       const leadId = parseInt(req.params.leadId);
 
-      // Validate leadId
       if (!leadId || leadId <= 0) {
         throw new APIError(
           "Invalid lead ID",
@@ -73,22 +63,15 @@ export const validateRequest = {
         );
       }
 
-      // Validate request body
       await CallPlanningSchema.updateCallFrequency.parseAsync(req.body);
 
-      // Validate business hours
       await CallPlanningSchema.businessHours.parseAsync({
         businessHoursStart: req.body.businessHoursStart,
         businessHoursEnd: req.body.businessHoursEnd,
         timezone: req.body.timezone,
       });
 
-      // Set request context
       req.context = createContext(req);
-      console.log("Update frequency context:", {
-        ...req.context,
-        leadId,
-      });
 
       next();
     } catch (error) {
