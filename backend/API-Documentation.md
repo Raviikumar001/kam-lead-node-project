@@ -149,11 +149,12 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 
 ```json
 {
-  "name": "Taj Restaurant",
+  "restaurantName": "Taj Restau",
   "address": "123 Main St, Mumbai",
   "cuisineType": "Indian",
-  "status": "new",
-  "notes": "Premium location"
+  "status": "NEW",
+  "notes": "Premium location",
+  "restaurantType": "QSR"
 }
 ```
 
@@ -179,8 +180,16 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 
 ```json
 {
-  "status": "contacted",
-  "notes": "First meeting scheduled"
+  "restaurantName": "Tasty loves",
+  "address": "456 Gourmet Avenue",
+  "status": "INTERESTED",
+  "restaurantType": "FINE_DINING",
+  "notes": "Ready for premium partnership",
+  "timezone": "Asia/Kolkata",
+  "businessHoursStart": "10:00",
+  "businessHoursEnd": "22:00",
+  "callFrequency": "BIWEEKLY",
+  "preferredCallDays": ["TUESDAY", "THURSDAY"]
 }
 ```
 
@@ -208,9 +217,9 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 
 ```json
 {
-  "leadId": 1,
+  "leadId": 5,
   "name": "Rahul Sharma",
-  "role": "Restaurant Manager",
+  "role": "MANAGER",
   "phone": "+919876543210",
   "email": "rahul@tajrestaurant.com",
   "isPrimary": true
@@ -264,11 +273,12 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 
 ```json
 {
-  "leadId": 1,
-  "type": "call",
+  "leadId": 5,
   "notes": "Discussed menu integration",
-  "status": "completed",
-  "nextFollowup": "2025-01-14T06:33:59Z"
+  "nextFollowup": "2025-01-14T06:33:59Z",
+  "contactId": 5,
+  "status": "FOLLOW_UP_NEEDED",
+  "type": "CALL"
 }
 ```
 
@@ -309,7 +319,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ### Get Today's Calls
 
 ```bash
-GET http://localhost:8000/api/call-planning/today
+GET http://localhost:8000/api/call-planning/today?timezone=Asia/Kolkata
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ```
 
@@ -333,7 +343,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ### Update Call Frequency
 
 ```bash
-PATCH http://localhost:8000/api/call-planning/lead/1/frequency
+PATCH http://localhost:8000/api/call-planning/lead/5/frequency
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ```
 
@@ -341,8 +351,11 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 
 ```json
 {
-  "frequency": "weekly",
-  "preferredTime": "morning"
+  "frequency": "WEEKLY",
+  "timezone": "Asia/Kolkata",
+  "businessHoursStart": "09:00",
+  "businessHoursEnd": "17:00",
+  "preferredCallDays": ["MONDAY", "WEDNESDAY", "FRIDAY"]
 }
 ```
 
