@@ -30,7 +30,6 @@ export const getInteractionsByLeadHandler = async (req, res, next) => {
       endDate: req.query.endDate,
     };
 
-    // Validate leadId
     if (!leadId || isNaN(parseInt(leadId))) {
       throw new APIError("Invalid lead ID", 400, ERROR_CODES.VALIDATION_ERROR);
     }
@@ -50,7 +49,6 @@ export const getLastInteractionHandler = async (req, res, next) => {
   try {
     const { leadId } = req.params;
 
-    // Validate leadId
     if (!leadId || isNaN(parseInt(leadId))) {
       throw new APIError("Invalid lead ID", 400, ERROR_CODES.VALIDATION_ERROR);
     }
@@ -78,7 +76,6 @@ export const getLeadInteractionStatsHandler = async (req, res, next) => {
   try {
     const { leadId } = req.params;
 
-    // Validate leadId
     if (!leadId || isNaN(parseInt(leadId))) {
       throw new APIError("Invalid lead ID", 400, ERROR_CODES.VALIDATION_ERROR);
     }

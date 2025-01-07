@@ -12,7 +12,6 @@ import { users } from "../db/schema/index.js";
 import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 
-// Helper function for consistent response format
 const formatResponse = (data, message = null) => ({
   status: "success",
   data,
@@ -36,7 +35,6 @@ export const register = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  console.log("login", req.body);
   logger.info("Login attempt", {
     email: req.body.email,
     timestamp: "2025-01-05 03:08:14",
@@ -67,7 +65,6 @@ export const refresh = async (req, res) => {
     );
   }
 
-  // Decode token to get userId (without verification)
   const decoded = jwt.decode(refreshToken);
 
   if (!decoded || !decoded.userId) {
@@ -78,7 +75,6 @@ export const refresh = async (req, res) => {
     throw new APIError("Invalid refresh token", 400, ERROR_CODES.INVALID_TOKEN);
   }
 
-  // Get user's current token version from database
   const [user] = await db
     .select()
     .from(users)
@@ -114,11 +110,9 @@ export const logout = async (req, res) => {
 
   if (refreshToken) {
     try {
-      // Decode token to get userId (without verification)
       const decoded = jwt.decode(refreshToken);
 
       if (decoded && decoded.userId) {
-        // Increment token version to invalidate all existing tokens
         await revokeUserTokens(decoded.userId);
 
         logger.info("User tokens revoked during logout", {
@@ -131,7 +125,6 @@ export const logout = async (req, res) => {
         error: error.message,
         timestamp: "2025-01-05 03:08:14",
       });
-      // Continue with logout even if token revocation fails
     }
   }
 
@@ -142,10 +135,8 @@ export const logout = async (req, res) => {
   res.json(formatResponse(null, "Logged out successfully"));
 };
 
-// Optional: Add endpoint to force logout from all devices
 export const logoutAll = async (req, res) => {
-  // This endpoint should be protected by authentication middleware
-  const userId = req.user.id; // Get from authenticated user
+  const userId = req.user.id;
 
   await revokeUserTokens(userId);
 

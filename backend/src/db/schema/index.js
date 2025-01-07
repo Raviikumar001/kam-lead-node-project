@@ -17,8 +17,6 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
-// 1. Define all ENUMs first
-
 export const leadStatus = pgEnum("lead_status", [
   "NEW",
   "CONTACTED",
@@ -60,7 +58,6 @@ export const performanceStatus = pgEnum("performance_status", [
   "UNDERPERFORMING",
 ]);
 
-// 2. Define tables using the ENUMs
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: varchar("email", { length: 255 }).notNull().unique(),
@@ -81,7 +78,6 @@ export const leads = pgTable("leads", {
   restaurantType: restaurantType("restaurant_type"),
   notes: text("notes"),
 
-  // Call planning fields
   timezone: varchar("timezone", { length: 50 }).notNull().default("UTC"),
   callFrequency: callFrequency("call_frequency"),
   lastCallDate: timestamp("last_call_date"),
@@ -125,19 +121,19 @@ export const interactions = pgTable("interactions", {
     .notNull(),
   type: interactionType("type").notNull(),
   status: interactionStatus("status").notNull(),
-  details: text("details").notNull(), // Make it required since it's important for tracking
+  details: text("details").notNull(),
   orderAmount: decimal("order_amount", { precision: 10, scale: 2 })
     .default("0")
-    .notNull(), // Make it not null with default
-  orderItems: jsonb("order_items").default("{}").notNull(), // Make it not null with default
-  // Consider changing createdBy to match users table's id type
+    .notNull(),
+  orderItems: jsonb("order_items").default("{}").notNull(),
+
   createdBy: integer("created_by")
     .references(() => users.id)
-    .notNull(), // Change to integer to match user.id
-  createdAt: timestamp("created_at", { withTimezone: true }) // Add timezone support
+    .notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }) // Add timezone support
+  updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
 });
@@ -161,7 +157,6 @@ export const leadPerformance = pgTable("lead_performance", {
   updatedBy: varchar("updated_by", { length: 255 }).notNull(),
 });
 
-// Order history table for pattern analysis
 export const orderHistory = pgTable("order_history", {
   id: serial("id").primaryKey(),
   leadId: integer("lead_id")
@@ -173,7 +168,6 @@ export const orderHistory = pgTable("order_history", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-// Then define relations
 export const usersRelations = relations(users, ({ many }) => ({
   leads: many(leads),
   interactions: many(interactions),

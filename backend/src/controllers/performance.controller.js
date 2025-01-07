@@ -57,11 +57,6 @@ export const PerformanceController = {
 
   async updateOrderHistory(req, res, next) {
     try {
-      console.log("Processing order update request:", {
-        body: req.body,
-        currentTime: req.context.currentTime,
-      });
-
       if (!req.body) {
         throw new APIError(
           "Request body is required",
@@ -70,16 +65,12 @@ export const PerformanceController = {
         );
       }
 
-      // Parse and validate order data
       const orderData =
         await performanceValidation.updateOrderHistory.parseAsync({
           ...req.body,
           orderDate: new Date(req.body.orderDate),
         });
 
-      console.log("Validated order data:", orderData);
-
-      // Compare dates properly using timestamps
       const orderTimestamp = new Date(orderData.orderDate).getTime();
       const currentTimestamp = new Date(req.context.currentTime).getTime();
 
