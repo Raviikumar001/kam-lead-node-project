@@ -118,7 +118,7 @@ udaan-backend/
 ├── src/
 │   ├── controllers/    # Request handlers
 │   ├── services/       # Business logic
-│   ├── models/         # Database models
+│   ├── db/         # Database models
 │   ├── routes/         # API routes
 │   ├── utils/          # Utility functions
 │   └── middleware/     # Custom middleware
